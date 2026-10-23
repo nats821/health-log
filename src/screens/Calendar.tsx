@@ -25,16 +25,19 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
   const last = toISO(new Date(month.y, month.m + 1, 0));
   const daily = useLiveQuery(() => db.daily.toArray(), []);
   const monthData = useLiveQuery(async () => {
-    const [ex, meas] = await Promise.all([
+    const [ex, meas, photos] = await Promise.all([
       db.exercises.where('date').between(first, last, true, true).toArray(),
       db.measurements.where('date').between(first, last, true, true).toArray(),
+      // 写真は日付だけを見る（中身は暗号化のまま。ロック中でも印は出せる）
+      db.photos.where('date').between(first, last, true, true).keys(),
     ]);
-    return { ex: new Set(ex.map((e) => e.date)), meas: new Set(meas.map((m) => m.date)) };
+    return { ex: new Set(ex.map((e) => e.date)), meas: new Set(meas.map((m) => m.date)), photos: new Set(photos as string[]) };
   }, [first, last]);
   const detail = useLiveQuery(
     async () => ({
       ex: await db.exercises.where('date').equals(selected).toArray(),
       meas: await db.measurements.get(selected),
+      photos: await db.photos.where('date').equals(selected).count(),
     }),
     [selected],
   );
@@ -66,7 +69,7 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
 
   const phase = cycle.map.get(selected);
   const shortSleep = !!settings?.sleepHighlightMinutes && rec?.sleepMinutes != null && rec.sleepMinutes < settings.sleepHighlightMinutes;
-  const hasAny = rec || detail?.ex.length || detail?.meas;
+  const hasAny = rec || detail?.ex.length || detail?.meas || detail?.photos;
 
   return (
     <div className="stack">
@@ -94,6 +97,7 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
                   'cal-day',
                   ph ? `ph-${ph.phase}` : '',
                   ph?.predicted ? 'predicted' : '',
+                  monthData?.photos.has(d) ? 'has-photo' : '',
                   d === selected ? 'sel' : '',
                   d === t ? 'today' : '',
                   d > t ? 'future' : '',
@@ -116,6 +120,7 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
           <span><i className="sw ph-period" />生理期</span>
           <span><i className="sw ph-kirakira" />キラキラ期</span>
           <span><i className="sw predicted" />予測（目安）</span>
+          <span><i className="sw photo" />写真あり</span>
           <span><i className="ci mo"><SunIcon /></i>朝の記録</span>
           <span><i className="ci ev"><MoonIcon /></i>夜の記録</span>
           <span><i className="ci ex"><ExIcon /></i>運動</span>
@@ -160,6 +165,7 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
             {rec?.condition && <Row k="体調の変化" v={rec.condition} />}
             {detail?.ex.length ? <Row k="運動の詳細" v={detail.ex.map((e) => e.name).join('、')} /> : null}
             {detail?.meas && <Row k="月次計測" v="あり" />}
+            {detail?.photos ? <Row k="比較写真" v={`${detail.photos}枚`} /> : null}
             {rec?.memo && <Row k="メモ" v={rec.memo} />}
           </dl>
         ) : (
@@ -172,6 +178,7 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
               <button className="secondary" onClick={() => go('evening', selected)}>夜を記録・修正</button>
               <button className="secondary" onClick={() => go('exercise', selected)}>運動の詳細</button>
               <button className="secondary" onClick={() => go('monthly', selected)}>月次計測</button>
+              {detail?.photos ? <button className="secondary" onClick={() => go('photos', selected)}>写真を見る</button> : null}
             </div>
             <div className="period-actions">
               {rec?.period !== 'during' && <button className="chip-btn" onClick={markStart}>この日を生理開始日にする</button>}
