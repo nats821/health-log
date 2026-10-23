@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dailyToCsv } from './csv';
 import { addDays, weekStart } from './date';
-import { compareWindows, currentPeriod, firstGoal, goalProgress, judgeTrend, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, TREND_FLAT, weeklyStrengthCount, windowAverage } from './stats';
+import { compareWindows, currentPeriod, mealSummary, firstGoal, goalProgress, judgeTrend, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, TREND_FLAT, weeklyStrengthCount, windowAverage } from './stats';
 import type { DailyRecord, Settings } from './types';
 
 const rec = (date: string, extra: Partial<DailyRecord> = {}): DailyRecord => ({ date, updatedAt: '', ...extra });
@@ -86,8 +86,8 @@ describe('CSV', () => {
     ]);
     expect(csv.startsWith('﻿日付,')).toBe(true);
     const lines = csv.slice(1).split('\r\n');
-    expect(lines[1]).toBe('2026-10-01,64.5,,,,,,◎,,ジャンク,,,,,,,');
-    expect(lines[2]).toBe('2026-10-02,,,,,,×,,,,,"むくみ, だるい\n早寝",,,,,');
+    expect(lines[1]).toBe('2026-10-01,64.5,,,,,,◎,,ジャンク,,,,,,,,,,,');
+    expect(lines[2]).toBe('2026-10-02,,,,,,×,,,,,"むくみ, だるい\n早寝",,,,,,,,,');
   });
 });
 
@@ -166,5 +166,19 @@ describe('からだの変化のしきい値', () => {
     expect(judge('weight', 65, 65.4)).toBe('up');
     expect(judge('bodyFat', 32, 31.6)).toBe('flat');
     expect(judge('bodyFat', 32, 31.4)).toBe('down');
+  });
+});
+
+describe('食事ごとの記録', () => {
+  it('1日のまとめ：ジャンクが1つでもあればジャンク、食べていない・未入力だけならまとめなし', () => {
+    expect(mealSummary(['healthy', 'junk', 'skipped', undefined])).toBe('junk');
+    expect(mealSummary(['healthy', 'skipped', undefined])).toBe('healthy');
+    expect(mealSummary(['skipped', undefined])).toBeUndefined();
+  });
+  it('CSVに朝食・昼食・夕食・間食の列。「食べていない」と未入力は区別', () => {
+    const csv = dailyToCsv([rec('2026-11-01', { breakfast: 'skipped', lunch: 'healthy', dinner: 'junk', meal: 'junk' })]);
+    const [header, row] = csv.slice(1).split('\r\n');
+    expect(header.endsWith('朝食,昼食,夕食,間食')).toBe(true);
+    expect(row.endsWith('食べていない,ヘルシー,ジャンク,')).toBe(true);
   });
 });

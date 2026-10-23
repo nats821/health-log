@@ -4,8 +4,9 @@ import type { Go } from '../App';
 import { cycleStats, dayPhases, periodRuns } from '../cycle';
 import { addDays, formatJa, parseISO, toISO, today } from '../date';
 import { db, getSettings, saveDaily } from '../db';
-import { ENERGY_LABEL, LEVEL_LABEL, MEAL_LABEL, PERIOD_LABEL, SNACK_LABEL, STOOL_LABEL } from '../labels';
-import { didExercise } from '../stats';
+import { ENERGY_LABEL, LEVEL_LABEL, MEAL_CHOICE_LABEL, MEAL_LABEL, MEAL_SLOT_LABEL, PERIOD_LABEL, SNACK_LABEL, STOOL_LABEL } from '../labels';
+import { MEAL_SLOTS } from '../types';
+import { didExercise, hasMealDetail } from '../stats';
 
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -157,9 +158,13 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
             {rec?.neat && <Row k="NEAT" v={LEVEL_LABEL[rec.neat]} />}
             {rec?.strength && <Row k="筋トレ" v={LEVEL_LABEL[rec.strength]} />}
             {rec?.cardio && <Row k="有酸素" v={LEVEL_LABEL[rec.cardio]} />}
-            {rec?.meal && <Row k="食事" v={MEAL_LABEL[rec.meal]} />}
+            {hasMealDetail(rec) ? (
+              <Row k="食事" v={MEAL_SLOTS.filter((k) => rec![k]).map((k) => `${MEAL_SLOT_LABEL[k]} ${MEAL_CHOICE_LABEL[rec![k]!]}`).join(' / ')} />
+            ) : (
+              rec?.meal && <Row k="食事" v={MEAL_LABEL[rec.meal]} />
+            )}
             {rec?.period && <Row k="生理" v={PERIOD_LABEL[rec.period]} />}
-            {rec?.snack && <Row k="間食" v={SNACK_LABEL[rec.snack]} />}
+            {rec?.snack && !rec.snackFood && <Row k="間食（以前の形式）" v={SNACK_LABEL[rec.snack]} />}
             {rec?.bowelCount != null && <Row k="お通じ" v={`${rec.bowelCount}回${rec.stool ? `・${STOOL_LABEL[rec.stool]}` : ''}`} />}
             {rec?.bowelCount == null && rec?.stool && <Row k="便の状態" v={STOOL_LABEL[rec.stool]} />}
             {rec?.condition && <Row k="体調の変化" v={rec.condition} />}

@@ -1,12 +1,13 @@
 import { toISO } from './date';
-import type { DailyRecord, Level, Measurement, MeasureKey, Period } from './types';
+import { mealSummary } from './stats';
+import type { DailyRecord, Level, MealChoice, Measurement, MeasureKey, Period } from './types';
 
 /** 2023Diet.xlsx（シート diet）の行データを、からだログの記録に変換する。保存はしない */
 
 export const IMPORT_TAG = 'excel-2023diet';
 
 export interface ImportOptions {
-  /** ヘルシープレート（朝昼夜）に✕がある日を「ジャンク」にする */
+  /** 元の表の食事欄（朝・昼・夜）の✕を「ジャンク」として取り込む（オフなら✕の食事は未入力のまま） */
   junkWhenCross: boolean;
 }
 
@@ -156,8 +157,18 @@ export function parseDietRows(rows: Cell[][], opts: ImportOptions): ImportResult
     const plate = [c.breakfast, c.lunch, c.dinner].map(text);
     const snack = text(c.snack);
     if (plate.some(Boolean) || snack) {
-      extra.push(`ヘルシープレート 朝${plate[0] || '-'}昼${plate[1] || '-'}夜${plate[2] || '-'}${snack ? ` 間食${snack}` : ''}`);
-      if (plate.some(Boolean)) rec.meal = opts.junkWhenCross && plate.some((v) => NO.test(v)) ? 'junk' : 'healthy';
+      // 元の記号はメモに残す（◯△✕の意味は元の表のまま）
+      extra.push(`元の表の食事欄 朝${plate[0] || '-'}昼${plate[1] || '-'}夜${plate[2] || '-'}${snack ? ` 間食${snack}` : ''}`);
+      // ◯△→ヘルシー、✕→ジャンク（オプション）。間食欄は意味が表によって違うため取り込まない
+      const toChoice = (v: string): MealChoice | undefined =>
+        YES.test(v) || v === '△' ? 'healthy' : NO.test(v) && opts.junkWhenCross ? 'junk' : undefined;
+      const [b, l, d] = plate.map(toChoice);
+      if (b) rec.breakfast = b;
+      if (l) rec.lunch = l;
+      if (d) rec.dinner = d;
+      const summary = mealSummary([b, l, d]);
+      if (summary) rec.meal = summary;
+      else if (plate.some(Boolean)) rec.meal = 'healthy';
     }
 
     const bmr = numIn(get(c.bmr), 500, 4000);

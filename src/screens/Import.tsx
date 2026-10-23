@@ -132,9 +132,10 @@ export default function Import({ go, notify }: { go: Go; notify: (m: string) => 
             </dl>
             <label className="check">
               <input type="checkbox" checked={junkWhenCross} onChange={(e) => setJunk(e.target.checked)} />
-              <span className="small">ヘルシープレート（朝・昼・夜）に✕がある日を「ジャンク」にする</span>
+              <span className="small">元の表の食事欄（朝・昼・夜）の✕を「ジャンク」として取り込む</span>
             </label>
             <p className="muted small">
+              朝・昼・夜の◯△は「ヘルシー」として朝食・昼食・夕食に入ります。間食欄は取り込まず、元の記号はメモに残します。
               元の表の◯△✕、筋トレの内容、「キラキラ」などの周期メモ、コメントは、各日のメモにそのまま残します。
               数式で計算された列（どれだけ痩せた？・2週間平均）は取り込まず、アプリで計算し直します。
             </p>

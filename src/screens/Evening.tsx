@@ -2,12 +2,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Go } from '../App';
 import { useEffect, useState } from 'react';
 import { DateField } from '../components/DateField';
+import { MealGrid } from '../components/MealGrid';
 import { Segmented } from '../components/Segmented';
 import { addDays, today } from '../date';
-import { cardioMinutes, suggestCardioLevel } from '../stats';
+import { cardioMinutes, hasMealDetail, mealSummary, suggestCardioLevel } from '../stats';
 import { db, getSettings, saveDaily } from '../db';
-import { cardioDesc, cardioHint, LEVEL_LABEL, MEAL_LABEL, NEAT_DESC, NEAT_HINT, PERIOD_LABEL, SNACK_LABEL, STOOL_LABEL, STRENGTH_DESC, STRENGTH_HINT } from '../labels';
-import type { Level, Meal, Period, Snack, Stool } from '../types';
+import { cardioDesc, cardioHint, LEVEL_LABEL, MEAL_LABEL, NEAT_DESC, NEAT_HINT, PERIOD_LABEL, STOOL_LABEL, STRENGTH_DESC, STRENGTH_HINT } from '../labels';
+import type { Level, Meal, MealChoice, MealSlot, Period, Stool } from '../types';
 
 const LEVELS: Level[] = ['none', 'light', 'good'];
 const levelOptions = (hints: Record<Level, string>) =>
@@ -19,10 +20,10 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
   const [neat, setNeat] = useState<Level | undefined>();
   const [strength, setStrength] = useState<Level | undefined>();
   const [cardio, setCardio] = useState<Level | undefined>();
-  const [meal, setMeal] = useState<Meal>('healthy');
+  const [meals, setMeals] = useState<Partial<Record<MealSlot, MealChoice>>>({});
+  const [legacyMeal, setLegacyMeal] = useState<Meal | undefined>(); // 食事ごとの記録がない旧データの「1日のまとめ」
   const [period, setPeriod] = useState<Period | undefined>();
   const [yesterdayPeriod, setYesterdayPeriod] = useState<Period | undefined>();
-  const [snack, setSnack] = useState<Snack | undefined>();
   const [bowel, setBowel] = useState('');
   const [stool, setStool] = useState<Stool | undefined>();
   const [condition, setCondition] = useState('');
@@ -35,13 +36,19 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
       setNeat(r?.neat);
       setStrength(r?.strength);
       setCardio(r?.cardio);
-      setMeal(r?.meal ?? 'healthy');
+      // 旧形式の「間食なし」は、新しい間食の「食べていない」として表示する
+      setMeals({
+        breakfast: r?.breakfast,
+        lunch: r?.lunch,
+        dinner: r?.dinner,
+        snackFood: r?.snackFood ?? (r?.snack === 'none' ? 'skipped' : undefined),
+      });
+      setLegacyMeal(hasMealDetail(r) ? undefined : r?.meal);
       setMemo(r?.memo ?? '');
-      setSnack(r?.snack);
       setBowel(r?.bowelCount?.toString() ?? '');
       setStool(r?.stool);
       setCondition(r?.condition ?? '');
-      setShowMore(r?.snack != null || r?.bowelCount != null || r?.stool != null || !!r?.condition);
+      setShowMore(r?.bowelCount != null || r?.stool != null || !!r?.condition);
       // 生理は未入力のまま。前日の状態はワンタップで引き継げるように表示だけする
       setPeriod(r?.period);
       setYesterdayPeriod((await db.daily.get(addDays(date, -1)))?.period);
@@ -53,9 +60,10 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
       neat,
       strength,
       cardio,
-      meal,
+      ...meals,
+      // 1日のまとめは食事ごとの記録から。食事ごとの記録がなければ旧データの値を残す
+      meal: mealSummary(Object.values(meals)) ?? legacyMeal,
       period,
-      snack,
       bowelCount: bowel.trim() === '' || isNaN(Number(bowel)) ? undefined : Math.max(0, Math.round(Number(bowel))),
       stool,
       condition: condition.trim() || undefined,
@@ -93,13 +101,21 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
           ＋ 運動の詳細を記録する（任意）
         </button>
         <div className="field">
-          <span>食事</span>
-          <Segmented
-            value={meal}
-            onChange={(v) => v && setMeal(v)}
-            options={(['healthy', 'junk'] as Meal[]).map((v) => ({ value: v, label: MEAL_LABEL[v] }))}
-          />
-          <p className="muted small">ジャンクを食べた日だけ切り替えればOK（自分の感覚での記録です）</p>
+          <div className="row-between">
+            <span>食事</span>
+            <button
+              type="button"
+              className="chip-btn"
+              onClick={() => setMeals((m) => ({ ...m, breakfast: m.breakfast ?? 'healthy', lunch: m.lunch ?? 'healthy', dinner: m.dinner ?? 'healthy' }))}
+            >
+              朝・昼・夕を まとめてヘルシー
+            </button>
+          </div>
+          <MealGrid value={meals} onChange={(slot, v) => setMeals((m) => ({ ...m, [slot]: v }))} />
+          {legacyMeal && !Object.values(meals).some(Boolean) && (
+            <p className="muted small">以前の記録：1日のまとめ「{MEAL_LABEL[legacyMeal]}」</p>
+          )}
+          <p className="muted small">自分の感覚での記録です。選んだボタンをもう一度押すと未入力に戻ります。</p>
         </div>
         <div className="field">
           <span>
@@ -120,14 +136,10 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
         </div>
 
         <button className="link left" onClick={() => setShowMore(!showMore)}>
-          {showMore ? '− ' : '＋ '}間食・お通じ・体調（任意）
+          {showMore ? '− ' : '＋ '}お通じ・体調（任意）
         </button>
         {showMore && (
           <div className="more">
-            <div className="field">
-              <span>間食<em className={snack ? 'state' : 'state unset'}>{snack ? '' : '未入力'}</em></span>
-              <Segmented clearable value={snack} onChange={setSnack} options={(['none', 'some'] as Snack[]).map((v) => ({ value: v, label: SNACK_LABEL[v] }))} />
-            </div>
             <div className="grid2">
               <label className="field">
                 <span>お通じ</span>

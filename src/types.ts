@@ -3,7 +3,11 @@ export type Level = 'none' | 'light' | 'good';
 export type Energy = 'good' | 'normal' | 'tired';
 export type Meal = 'healthy' | 'junk';
 export type Period = 'none' | 'pre' | 'during';
-export type Snack = 'none' | 'some';
+export type Snack = 'none' | 'some'; // 旧形式の間食（なし/あり）。過去の記録の表示用に残す
+/** 食事ごとの記録。「食べていない」は未入力(undefined)とは別 */
+export type MealChoice = 'healthy' | 'junk' | 'skipped';
+export const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snackFood'] as const;
+export type MealSlot = (typeof MEAL_SLOTS)[number];
 export type Stool = 'hard' | 'normal' | 'soft';
 
 export interface DailyRecord {
@@ -18,7 +22,12 @@ export interface DailyRecord {
   neat?: Level;
   strength?: Level;
   cardio?: Level;
-  meal?: Meal; // 自己評価。医学的判定ではない
+  // 食事（自己評価。医学的判定ではない）
+  breakfast?: MealChoice;
+  lunch?: MealChoice;
+  dinner?: MealChoice;
+  snackFood?: MealChoice;
+  meal?: Meal; // 1日のまとめ。朝昼夕・間食から自動で決まる（旧データ・Excel取り込みではこれだけのこともある）
   period?: Period;
   // 任意の生活記録（毎日の必須入力ではない）
   snack?: Snack;

@@ -1,10 +1,12 @@
-import type { Energy, ExerciseKind, Level, Meal, MeasureKey, Period, Snack, Stool } from './types';
+import type { Energy, ExerciseKind, Level, Meal, MealChoice, MealSlot, MeasureKey, Period, Snack, Stool } from './types';
 
 export const LEVEL_LABEL: Record<Level, string> = { none: '×', light: '○', good: '◎' };
 export const ENERGY_LABEL: Record<Energy, string> = { good: '元気', normal: '普通', tired: 'だるい' };
 export const MEAL_LABEL: Record<Meal, string> = { healthy: 'ヘルシー', junk: 'ジャンク' };
 export const PERIOD_LABEL: Record<Period, string> = { none: 'なし', pre: '生理前', during: '生理中' };
 
+export const MEAL_CHOICE_LABEL: Record<MealChoice, string> = { healthy: 'ヘルシー', junk: 'ジャンク', skipped: '食べていない' };
+export const MEAL_SLOT_LABEL: Record<MealSlot, string> = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snackFood: '間食' };
 export const SNACK_LABEL: Record<Snack, string> = { none: 'なし', some: 'あり' };
 export const STOOL_LABEL: Record<Stool, string> = { hard: '硬め', normal: 'ふつう', soft: 'やわらかめ' };
 

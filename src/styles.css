@@ -218,3 +218,14 @@ button:disabled { opacity: 0.5; cursor: default; }
 .trend-card.flat .trend-main { color: var(--lavender-deep); }
 .trend-card.insufficient .trend-main { color: var(--muted); }
 .trend-diff { font-size: 1.3rem; font-weight: 600; }
+
+/* 食事（朝食・昼食・夕食・間食） */
+.meal-grid { display: flex; flex-direction: column; gap: 6px; }
+.meal-row { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 6px; }
+.meal-name { font-size: 0.85rem; font-weight: 500; display: flex; flex-direction: column; gap: 1px; }
+.meal-name .state { font-size: 0.6rem; align-self: flex-start; padding: 0 6px; }
+.meal-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.meal-choices button { border: 1.5px solid var(--line); background: #fdfcfe; border-radius: 12px; padding: 9px 2px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+.meal-choices button.on.healthy { background: #e9f6ef; border-color: #8fd0b3; font-weight: 600; }
+.meal-choices button.on.junk { background: var(--pink); border-color: var(--pink-deep); font-weight: 600; }
+.meal-choices button.on.skipped { background: #f1eff4; border-color: #c9c3d3; font-weight: 600; }

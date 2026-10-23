@@ -80,6 +80,15 @@ describe('parseDietRows', () => {
   it('ジャンク判定はオプションで切れる', () => {
     expect(parseDietRows(rows, { junkWhenCross: false }).daily[1].meal).toBe('healthy');
   });
+  it('朝・昼・夜の◯△はヘルシー、✕はジャンク（オフなら未入力）。間食欄は取り込まない', () => {
+    expect(r.daily[0]).toMatchObject({ breakfast: 'healthy', lunch: 'healthy', dinner: 'healthy' });
+    expect(r.daily[0].snackFood).toBeUndefined();
+    expect(r.daily[1]).toMatchObject({ breakfast: 'healthy', lunch: 'junk' });
+    expect(parseDietRows(rows, { junkWhenCross: false }).daily[1].lunch).toBeUndefined();
+  });
+  it('新しい記録の名前に「ヘルシープレート」を使わない', () => {
+    expect(r.daily.map((d) => d.memo ?? '').join()).not.toContain('ヘルシープレート');
+  });
 });
 
 describe('fillEmpty', () => {

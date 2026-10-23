@@ -1,5 +1,5 @@
 import { addDays, weekStart } from './date';
-import type { DailyRecord, ExerciseEntry, Level, MeasureKey, Measurement, Settings } from './types';
+import { type DailyRecord, type ExerciseEntry, type Level, type Meal, MEAL_SLOTS, type MealChoice, type MeasureKey, type Measurement, type Settings } from './types';
 
 export type NumKey = 'weight' | 'bodyFat';
 
@@ -170,4 +170,15 @@ export function judgeTrend(cmp: { current: WindowAvg; previous: WindowAvg; diff:
   if (cmp.diff == null || cmp.current.count < MIN_DAYS_FOR_TREND || cmp.previous.count < MIN_DAYS_FOR_TREND) return 'insufficient';
   if (Math.abs(cmp.diff) < flatRange) return 'flat';
   return cmp.diff < 0 ? 'down' : 'up';
+}
+
+/** 食事ごとの記録から1日のまとめを出す：1つでもジャンクならジャンク、ヘルシーがあればヘルシー */
+export function mealSummary(choices: (MealChoice | undefined)[]): Meal | undefined {
+  if (choices.includes('junk')) return 'junk';
+  if (choices.includes('healthy')) return 'healthy';
+  return undefined;
+}
+
+export function hasMealDetail(r: DailyRecord | undefined) {
+  return !!r && MEAL_SLOTS.some((k) => r[k] != null);
 }
