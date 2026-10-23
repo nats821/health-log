@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Go } from '../App';
 import { formatJa, today } from '../date';
 import { db, getSettings } from '../db';
-import { compareWindows, currentPeriod, firstGoal, goalProgress, latest, round1, startWeight, weeklyStrengthCount } from '../stats';
+import { compareWindows, currentPeriod, firstGoal, goalProgress, judgeTrend, latest, MIN_DAYS_FOR_TREND, type NumKey, round1, startWeight, type Trend, TREND_FLAT, weeklyStrengthCount } from '../stats';
+import type { DailyRecord } from '../types';
 
 export default function Home({ go }: { go: Go }) {
   const allRecords = useLiveQuery(() => db.daily.toArray(), []);
@@ -95,6 +96,15 @@ export default function Home({ go }: { go: Go }) {
         <p className="muted small">目標までの距離は、日々の上下に左右されにくい14日平均で計算しています。</p>
       </section>
 
+      <section className="card">
+        <h2>からだの変化</h2>
+        <p className="muted small">直近14日間の平均を、その前の14日間と比べています（記録のない日は除く）</p>
+        <div className="trend-cards">
+          <TrendCard records={records} metric="weight" title="体重" unit="kg" today={t} />
+          <TrendCard records={records} metric="bodyFat" title="体脂肪率" unit="pt" today={t} />
+        </div>
+      </section>
+
       {todayRec?.sleepMinutes != null && (
         <section className={`card row-between ${lowSleep ? 'sleep-note' : ''}`}>
           <div>
@@ -135,6 +145,47 @@ function Stat({ label, value, unit, note }: { label: string; value: string; unit
         {value !== '—' && <span className="unit">{unit}</span>}
       </p>
       {note && <p className="muted small">{note}</p>}
+    </div>
+  );
+}
+
+const TREND_VIEW: Record<Trend, { arrow: string; word: string }> = {
+  down: { arrow: '↘', word: '減少傾向' },
+  up: { arrow: '↗', word: '増加傾向' },
+  flat: { arrow: '→', word: '横ばい' },
+  insufficient: { arrow: '…', word: '判定中' },
+};
+
+function TrendCard(props: { records: DailyRecord[]; metric: NumKey; title: string; unit: string; today: string }) {
+  const { records, metric, title, unit, today: t } = props;
+  const cmp = compareWindows(records, metric, t);
+  const trend = judgeTrend(cmp, TREND_FLAT[metric]);
+  const view = TREND_VIEW[trend];
+  const avgUnit = metric === 'weight' ? 'kg' : '%';
+  return (
+    <div className={`trend-card ${trend}`}>
+      <p className="label">{title}</p>
+      <p className="trend-main">
+        <span className="trend-arrow">{view.arrow}</span>
+        {view.word}
+      </p>
+      {trend === 'insufficient' ? (
+        <p className="muted small">
+          記録 {cmp.current.count}日・前 {cmp.previous.count}日
+          <br />
+          各{MIN_DAYS_FOR_TREND}日以上で判定します
+        </p>
+      ) : (
+        <>
+          <p className="trend-diff">
+            {signed(cmp.diff!)}
+            <span className="unit">{unit}</span>
+          </p>
+          <p className="muted small">
+            {round1(cmp.current.avg!).toFixed(1)}{avgUnit}（前 {round1(cmp.previous.avg!).toFixed(1)}{avgUnit}）
+          </p>
+        </>
+      )}
     </div>
   );
 }

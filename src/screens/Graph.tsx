@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { addDays, formatJa, formatShort, parseISO, today } from '../date';
 import { db, getSettings } from '../db';
-import { compareWindows, currentPeriod, judgeTrend, MIN_DAYS_FOR_TREND, type NumKey, rollingSeries, round1, type Trend } from '../stats';
+import { compareWindows, currentPeriod, judgeTrend, MIN_DAYS_FOR_TREND, type NumKey, rollingSeries, round1, TREND_FLAT, type Trend } from '../stats';
 import type { DailyRecord } from '../types';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
@@ -40,8 +40,8 @@ export default function Graph() {
           <button key={r.id} className={r.id === range ? 'on' : ''} onClick={() => setRange(r.id)}>{r.label}</button>
         ))}
       </div>
-      <MetricChart records={records} current={currentPeriod(records, settings)} start={start} metric="weight" title="体重" unit="kg" flat={0.2} days={days} color="#a58fd0" avgColor="#e58fae" />
-      <MetricChart records={records} current={currentPeriod(records, settings)} start={start} metric="bodyFat" title="体脂肪率" unit="%" flat={0.3} days={days} color="#7fb6d9" avgColor="#e58fae" />
+      <MetricChart records={records} current={currentPeriod(records, settings)} start={start} metric="weight" title="体重" unit="kg" flat={TREND_FLAT.weight} days={days} color="#a58fd0" avgColor="#e58fae" />
+      <MetricChart records={records} current={currentPeriod(records, settings)} start={start} metric="bodyFat" title="体脂肪率" unit="%" flat={TREND_FLAT.bodyFat} days={days} color="#7fb6d9" avgColor="#e58fae" />
       <p className="muted small center">
         平均は「記録件数」ではなく「直近14暦日」で計算しています。
         比較は今回のダイエット（{start.replace(/-/g, '/')}〜）の記録だけを使い、灰色の点は過去の記録です。
@@ -145,8 +145,8 @@ function diffText(d: number) {
   return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toFixed(1);
 }
 const TREND_WORD: Record<Trend, string> = {
-  down: 'ゆるやかに減少',
-  up: '少し増加・波はつきもの',
-  flat: 'ほぼ横ばい',
-  insufficient: `記録が各${MIN_DAYS_FOR_TREND}日以上で判定`,
+  down: '↘ 減少傾向',
+  up: '↗ 増加傾向',
+  flat: '→ 横ばい',
+  insufficient: `判定中（各${MIN_DAYS_FOR_TREND}日以上の記録で判定）`,
 };

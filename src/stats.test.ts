@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dailyToCsv } from './csv';
 import { addDays, weekStart } from './date';
-import { compareWindows, currentPeriod, firstGoal, goalProgress, judgeTrend, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, weeklyStrengthCount, windowAverage } from './stats';
+import { compareWindows, currentPeriod, firstGoal, goalProgress, judgeTrend, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, TREND_FLAT, weeklyStrengthCount, windowAverage } from './stats';
 import type { DailyRecord, Settings } from './types';
 
 const rec = (date: string, extra: Partial<DailyRecord> = {}): DailyRecord => ({ date, updatedAt: '', ...extra });
@@ -153,5 +153,18 @@ describe('今回のダイエット期間と増減の判定', () => {
     const c = measurementContext(list, '2026-10-25', '2026-10-23');
     expect(c.previous).toBeUndefined();
     expect(c.first).toBeUndefined();
+  });
+});
+
+describe('からだの変化のしきい値', () => {
+  const days = (start: string, n: number, k: 'weight' | 'bodyFat', v: number) => Array.from({ length: n }, (_, i) => rec(addDays(start, i), { [k]: v }));
+  it('体重は0.3kg未満、体脂肪率は0.5ポイント未満の差なら横ばい', () => {
+    const judge = (k: 'weight' | 'bodyFat', a: number, b: number) =>
+      judgeTrend(compareWindows([...days('2026-10-01', 10, k, a), ...days('2026-10-15', 10, k, b)], k, '2026-10-28'), TREND_FLAT[k]);
+    expect(judge('weight', 65, 64.8)).toBe('flat');
+    expect(judge('weight', 65, 64.6)).toBe('down');
+    expect(judge('weight', 65, 65.4)).toBe('up');
+    expect(judge('bodyFat', 32, 31.6)).toBe('flat');
+    expect(judge('bodyFat', 32, 31.4)).toBe('down');
   });
 });

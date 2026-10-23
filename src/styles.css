@@ -44,8 +44,8 @@ p { margin: 0; }
 .small { font-size: 0.75rem; line-height: 1.5; }
 .center { text-align: center; }
 .empty { padding: 28px 0; }
-.trend.down { color: var(--lavender-deep); }
-.trend.up { color: var(--sky-deep); }
+.trend.down { color: #4fa883; }
+.trend.up { color: #8d869b; }
 .trend.flat { color: var(--text); }
 
 .big-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -204,3 +204,17 @@ button:disabled { opacity: 0.5; cursor: default; }
 /* 枠いっぱいの帯。上の角は枠の丸みで切り取られ、下側は真っ直ぐ */
 .cal-day.has-photo::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #b5e6d7; }
 .sw.photo { background: linear-gradient(#b5e6d7 0 3px, #fdfcfe 3px); }
+
+/* からだの変化（14日平均の傾向） */
+.trend-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.trend-card { border-radius: 18px; padding: 12px; background: #f7f5fa; display: flex; flex-direction: column; gap: 4px; }
+.trend-card.down { background: #e9f6ef; }
+.trend-card.up { background: #f1eff4; }
+.trend-card.flat { background: #f3f0fb; }
+.trend-main { font-weight: 600; font-size: 1rem; display: flex; align-items: center; gap: 6px; }
+.trend-arrow { font-size: 1.25rem; line-height: 1; }
+.trend-card.down .trend-main { color: #4fa883; }
+.trend-card.up .trend-main { color: #857e93; }
+.trend-card.flat .trend-main { color: var(--lavender-deep); }
+.trend-card.insufficient .trend-main { color: var(--muted); }
+.trend-diff { font-size: 1.3rem; font-weight: 600; }

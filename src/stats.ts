@@ -155,6 +155,13 @@ export function currentPeriod<T extends { date: string }>(list: T[], settings: S
 }
 
 export type Trend = 'down' | 'up' | 'flat' | 'insufficient';
+
+/**
+ * 「横ばい」とみなす差の幅（14日平均どうしの差）。
+ * 体重は水分などで日に0.5〜1kg動き、家庭用体組成計の体脂肪率は日に1ポイント前後ぶれるため、
+ * 平均しても残る誤差より小さい差は横ばいとする。
+ */
+export const TREND_FLAT: Record<NumKey, number> = { weight: 0.3, bodyFat: 0.5 };
 /** 比較に必要な最低記録日数（各14日のうち） */
 export const MIN_DAYS_FOR_TREND = 5;
 
