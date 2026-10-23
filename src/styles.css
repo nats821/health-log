@@ -200,5 +200,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .plain-input { width: 100%; border: 1.5px solid var(--line); border-radius: 14px; padding: 12px; background: #fff; font-size: 16px; }
 .notice ol { margin: 6px 0 10px; padding-left: 20px; }
 
-.cal-day.has-photo::before { content: ''; position: absolute; top: 0; left: 4px; right: 4px; height: 6px; border-radius: 0; background: #6cc9ad; }
-.sw.photo { background: linear-gradient(#6cc9ad 0 5px, #fdfcfe 5px); }
+.cal-day.has-photo { overflow: hidden; }
+/* 枠いっぱいの帯。上の角は枠の丸みで切り取られ、下側は真っ直ぐ */
+.cal-day.has-photo::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #b5e6d7; }
+.sw.photo { background: linear-gradient(#b5e6d7 0 3px, #fdfcfe 3px); }
