@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
-import type { DailyRecord, ExerciseEntry, Measurement, Settings } from './types';
+import type { DailyRecord, ExerciseEntry, Measurement, PhotoRecord, Settings } from './types';
+import type { VaultMeta } from './vault';
 
 /** ?demo=1 のときは別DBを使い、サンプル値が本番データに混ざらないようにする */
 export const IS_DEMO =
@@ -10,6 +11,8 @@ class HealthDB extends Dexie {
   settings!: Table<Settings, string>;
   exercises!: Table<ExerciseEntry, number>;
   measurements!: Table<Measurement, string>;
+  photos!: Table<PhotoRecord, string>;
+  vault!: Table<VaultMeta, string>;
   constructor(name: string) {
     super(name);
     this.version(1).stores({ daily: 'date', settings: 'id' });
@@ -22,6 +25,11 @@ class HealthDB extends Dexie {
           if (!e.uid) e.uid = newId();
         }),
       );
+    // v4: 比較写真（暗号化済み）と、写真の鍵を包んだ情報
+    this.version(4).stores({
+      daily: 'date', settings: 'id', exercises: '++id, date, &uid', measurements: 'date',
+      photos: '&uid, date, [date+angle]', vault: 'id',
+    });
     this.exercises.hook('creating', (_key, obj) => {
       if (!obj.uid) obj.uid = newId();
     });

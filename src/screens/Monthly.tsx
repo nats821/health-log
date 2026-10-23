@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import type { Go } from '../App';
 import { useEffect, useState } from 'react';
 import { DateField } from '../components/DateField';
 import { formatJa, today } from '../date';
@@ -10,12 +11,13 @@ import { MEASURE_KEYS, type MeasureKey, type Measurement } from '../types';
 type Form = Record<MeasureKey, string>;
 const empty = (): Form => Object.fromEntries(MEASURE_KEYS.map((k) => [k, ''])) as Form;
 
-export default function Monthly({ initialDate, notify }: { initialDate?: string; notify: (m: string) => void }) {
+export default function Monthly({ initialDate, go, notify }: { initialDate?: string; go: Go; notify: (m: string) => void }) {
   const [date, setDate] = useState(initialDate ?? today());
   const [form, setForm] = useState<Form>(empty());
   const [memo, setMemo] = useState('');
   const all = useLiveQuery(() => db.measurements.toArray(), []);
   const settings = useLiveQuery(getSettings, []);
+  const photoCount = useLiveQuery(() => db.photos.where('date').equals(date).count(), [date]) ?? 0;
 
   useEffect(() => {
     db.measurements.get(date).then((m) => {
@@ -87,12 +89,11 @@ export default function Monthly({ initialDate, notify }: { initialDate?: string;
         <button className="primary" onClick={save}>保存する</button>
       </section>
 
-      <section className="card soon">
-        <p className="label">比較写真</p>
-        <p className="muted small">
-          正面・横・後ろの写真は、まだ保存できません。本人認証と暗号化などの保護の仕組みを用意してから追加します。
-        </p>
-      </section>
+      <button className="card soon tappable" onClick={() => go('photos', date)}>
+        <p className="label">比較写真（正面・横・後ろ）</p>
+        <p className="small">{photoCount ? `この日の写真 ${photoCount}枚` : 'この日の写真を登録・過去と比べる'}</p>
+        <p className="muted small">端末内に暗号化して保存。開くには合言葉（対応端末ではFace ID）が必要です。</p>
+      </button>
 
       {history.length > 0 && (
         <section className="card">

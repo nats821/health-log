@@ -69,3 +69,17 @@ export type Measurement = Partial<Record<MeasureKey, number>> & {
   importedFrom?: string;
   updatedAt: string;
 };
+
+export type Angle = 'front' | 'side' | 'back';
+
+/** 比較写真。画像は暗号化したまま保存し、加工はしない */
+export interface PhotoRecord {
+  uid: string;
+  date: string;
+  angle: Angle;
+  mime: string;
+  size: number;
+  iv: Uint8Array<ArrayBuffer>;
+  data: ArrayBuffer; // 暗号化済み
+  createdAt: string;
+}

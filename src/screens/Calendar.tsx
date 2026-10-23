@@ -11,6 +11,7 @@ const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
 
 const ic = { width: 11, height: 11, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 const ExIcon = () => (<svg {...ic}><path d="M7 7v10M4 9.5v5M17 7v10M20 9.5v5M7 12h10" /></svg>);
+const SunIcon = () => (<svg {...ic}><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg>);
 const MoonIcon = () => (<svg {...ic}><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" /></svg>);
 const RulerIcon = () => (<svg {...ic}><rect x="3" y="8" width="18" height="8" rx="2" /><path d="M7 8v3M11 8v4M15 8v3" /></svg>);
 
@@ -84,6 +85,7 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
             if (!d) return <div key={`e${i}`} />;
             const r = byDate.get(d);
             const ph = cycle.map.get(d);
+            const morning = r?.morningAt != null || r?.weight != null || r?.bodyFat != null || r?.sleepMinutes != null || r?.energy != null;
             const evening = r?.eveningAt != null || r?.neat != null || r?.strength != null || r?.cardio != null;
             return (
               <button
@@ -100,10 +102,11 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
               >
                 <span className="cal-num">{parseISO(d).getDate()}</span>
                 <span className="cal-weight">{r?.weight != null ? r.weight.toFixed(1) : ''}</span>
+                {monthData?.meas.has(d) && <i className="ci ms corner"><RulerIcon /></i>}
                 <span className="cal-icons">
-                  {didExercise(r, monthData?.ex.has(d) ? 1 : 0) && <i className="ci ex"><ExIcon /></i>}
+                  {morning && <i className="ci mo"><SunIcon /></i>}
                   {evening && <i className="ci ev"><MoonIcon /></i>}
-                  {monthData?.meas.has(d) && <i className="ci ms"><RulerIcon /></i>}
+                  {didExercise(r, monthData?.ex.has(d) ? 1 : 0) && <i className="ci ex"><ExIcon /></i>}
                 </span>
               </button>
             );
@@ -113,8 +116,9 @@ export default function CalendarScreen({ go, initialDate }: { go: Go; initialDat
           <span><i className="sw ph-period" />生理期</span>
           <span><i className="sw ph-kirakira" />キラキラ期</span>
           <span><i className="sw predicted" />予測（目安）</span>
-          <span><i className="ci ex"><ExIcon /></i>運動</span>
+          <span><i className="ci mo"><SunIcon /></i>朝の記録</span>
           <span><i className="ci ev"><MoonIcon /></i>夜の記録</span>
+          <span><i className="ci ex"><ExIcon /></i>運動</span>
           <span><i className="ci ms"><RulerIcon /></i>計測</span>
         </div>
         {cycle.next && (

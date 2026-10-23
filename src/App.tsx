@@ -10,9 +10,10 @@ import Home from './screens/Home';
 import Import from './screens/Import';
 import Monthly from './screens/Monthly';
 import Morning from './screens/Morning';
+import Photos from './screens/Photos';
 import SettingsScreen from './screens/Settings';
 
-export type Screen = 'home' | 'morning' | 'evening' | 'calendar' | 'exercise' | 'monthly' | 'graph' | 'settings' | 'import';
+export type Screen = 'home' | 'morning' | 'evening' | 'calendar' | 'exercise' | 'monthly' | 'graph' | 'settings' | 'import' | 'photos';
 export type Go = (screen: Screen, date?: string) => void;
 
 const TABS: { id: Screen; label: string; icon: JSX.Element }[] = [
@@ -24,7 +25,7 @@ const TABS: { id: Screen; label: string; icon: JSX.Element }[] = [
 ];
 
 // 朝・夜・月次はホームやカレンダーから開く画面。タブはどこを光らせるか
-const TAB_OF: Partial<Record<Screen, Screen>> = { morning: 'home', evening: 'home', monthly: 'home', import: 'settings' };
+const TAB_OF: Partial<Record<Screen, Screen>> = { morning: 'home', evening: 'home', monthly: 'home', import: 'settings', photos: 'home' };
 
 export default function App() {
   const [nav, setNav] = useState<{ screen: Screen; date?: string; key: number }>({ screen: 'home', key: 0 });
@@ -61,7 +62,8 @@ export default function App() {
         {screen === 'evening' && <Evening initialDate={date} go={go} onSaved={() => saved('夜の記録を保存しました')} />}
         {screen === 'calendar' && <CalendarScreen go={go} initialDate={date} />}
         {screen === 'exercise' && <Exercise initialDate={date} notify={notify} />}
-        {screen === 'monthly' && <Monthly initialDate={date} notify={notify} />}
+        {screen === 'monthly' && <Monthly initialDate={date} go={go} notify={notify} />}
+        {screen === 'photos' && <Photos initialDate={date} notify={notify} />}
         {screen === 'graph' && <Graph />}
         {screen === 'settings' && <SettingsScreen go={go} notify={notify} />}
         {screen === 'import' && <Import go={go} notify={notify} />}
