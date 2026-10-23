@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Screen } from '../App';
+import type { Go } from '../App';
 import { formatJa, today } from '../date';
 import { db, getSettings } from '../db';
-import { compareWindows, latest, nextMilestone, round1, startWeight, weeklyStrengthCount } from '../stats';
+import { compareWindows, firstGoal, goalProgress, latest, round1, startWeight, weeklyStrengthCount } from '../stats';
 
-export default function Home({ go }: { go: (s: Screen) => void }) {
+export default function Home({ go }: { go: Go }) {
   const records = useLiveQuery(() => db.daily.toArray(), []);
+  const lastMeasure = useLiveQuery(() => db.measurements.orderBy('date').last(), []);
   const settings = useLiveQuery(getSettings, []);
   if (!records || !settings) return null;
 
@@ -17,10 +18,13 @@ export default function Home({ go }: { go: (s: Screen) => void }) {
   const last = latest(records, 'weight');
   const cmp = compareWindows(records, 'weight', t);
   const start = startWeight(records, settings);
+  // 判断は日々の値ではなく14日平均で（なければ最新値）
   const ref = cmp.current.avg ?? last?.value ?? null;
   const fromStart = ref != null && start != null ? ref - start : null;
+  const goal1 = firstGoal(settings);
+  const toGoal1 = ref != null && goal1 != null ? ref - goal1 : null;
   const toGoal = ref != null ? ref - settings.goalWeight : null;
-  const milestone = ref != null ? nextMilestone(ref, settings) : null;
+  const progress = goalProgress(start, ref, settings.goalWeight);
   const strength = weeklyStrengthCount(records, t);
   const lowSleep =
     settings.sleepHighlightMinutes > 0 &&
@@ -47,26 +51,46 @@ export default function Home({ go }: { go: (s: Screen) => void }) {
 
       <section className="card">
         <div className="grid2">
-          <Stat label="最新の体重" value={last ? `${last.value.toFixed(1)}` : '—'} unit="kg" note={last ? formatJa(last.date) : 'まだ記録がありません'} />
+          <Stat label="最新の体重" value={last ? last.value.toFixed(1) : '—'} unit="kg" note={last ? formatJa(last.date) : 'まだ記録がありません'} />
           <Stat
-            label="14日間の平均"
+            label="直近14日間の平均"
             value={cmp.current.avg != null ? round1(cmp.current.avg).toFixed(1) : '—'}
             unit="kg"
             note={`${cmp.current.count}/14日分の記録`}
           />
-          <Stat
-            label="開始時から"
-            value={fromStart != null ? signed(fromStart) : '—'}
-            unit="kg"
+        </div>
+        <div className="summary-rows">
+          <SummaryRow
+            label="ダイエット開始時から"
+            value={fromStart != null ? `${signed(fromStart)}kg` : '—'}
             note={start != null ? `開始 ${start.toFixed(1)}kg` : '設定で開始日を決められます'}
           />
-          <Stat
-            label={`${settings.goalWeight}kgまで`}
-            value={toGoal != null ? (toGoal > 0 ? round1(toGoal).toFixed(1) : '到達') : '—'}
-            unit={toGoal != null && toGoal > 0 ? 'kg' : ''}
-            note={milestone != null && milestone !== settings.goalWeight ? `次の目安 ${milestone}kg` : '14日平均で計算'}
-          />
+          {goal1 != null && (
+            <SummaryRow label={`第1目標 ${goal1}kg まで`} value={remaining(toGoal1)} />
+          )}
+          <SummaryRow label={`最終目標 ${settings.goalWeight}kg まで`} value={remaining(toGoal)} />
         </div>
+        {progress != null && start != null && (
+          <div className="progress-wrap">
+            <div className="progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+              <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
+              {settings.milestones
+                .filter((m) => m < start && m > settings.goalWeight)
+                .map((m) => (
+                  <span key={m} className="progress-mark" style={{ left: `${((start - m) / (start - settings.goalWeight)) * 100}%` }}>
+                    <i />
+                    <em>{m}</em>
+                  </span>
+                ))}
+            </div>
+            <div className="row-between small muted progress-ends">
+              <span>開始 {start.toFixed(1)}</span>
+              <span>{progress > 0 ? `${Math.round(progress * 100)}% 進みました` : 'ここから少しずつ'}</span>
+              <span>{settings.goalWeight}</span>
+            </div>
+          </div>
+        )}
+        <p className="muted small">目標までの距離は、日々の上下に左右されにくい14日平均で計算しています。</p>
       </section>
 
       {todayRec?.sleepMinutes != null && (
@@ -90,10 +114,12 @@ export default function Home({ go }: { go: (s: Screen) => void }) {
         <p className="muted small">休息日も大切な日です</p>
       </section>
 
-      <section className="card soon">
+      <button className="card soon tappable" onClick={() => go('monthly')}>
         <p className="label">月次ボディチェック</p>
-        <p className="muted small">サイズ計測と比較写真は次の段階（Phase 2・3）で追加予定です。</p>
-      </section>
+        <p className="small">
+          {lastMeasure ? `前回の計測：${formatJa(lastMeasure.date)}` : 'まだ計測がありません。月に1回、サイズを測ってみましょう'}
+        </p>
+      </button>
     </div>
   );
 }
@@ -109,6 +135,23 @@ function Stat({ label, value, unit, note }: { label: string; value: string; unit
       {note && <p className="muted small">{note}</p>}
     </div>
   );
+}
+
+function SummaryRow({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="summary-row">
+      <div>
+        <p className="small">{label}</p>
+        {note && <p className="muted small">{note}</p>}
+      </div>
+      <p className="summary-value">{value}</p>
+    </div>
+  );
+}
+
+function remaining(d: number | null) {
+  if (d == null) return '—';
+  return d > 0 ? `あと ${round1(d).toFixed(1)}kg` : '達成 ✓';
 }
 
 function signed(n: number) {

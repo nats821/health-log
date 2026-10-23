@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dailyToCsv } from './csv';
 import { addDays, weekStart } from './date';
-import { compareWindows, latest, nextMilestone, rollingSeries, startWeight, weeklyStrengthCount, windowAverage } from './stats';
+import { compareWindows, firstGoal, goalProgress, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, weeklyStrengthCount, windowAverage } from './stats';
 import type { DailyRecord, Settings } from './types';
 
 const rec = (date: string, extra: Partial<DailyRecord> = {}): DailyRecord => ({ date, updatedAt: '', ...extra });
@@ -86,7 +86,50 @@ describe('CSV', () => {
     ]);
     expect(csv.startsWith('﻿日付,')).toBe(true);
     const lines = csv.slice(1).split('\r\n');
-    expect(lines[1]).toBe('2026-10-01,64.5,,,,,◎,,ジャンク,,');
-    expect(lines[2]).toBe('2026-10-02,,,,,×,,,,,"むくみ, だるい\n早寝"');
+    expect(lines[1]).toBe('2026-10-01,64.5,,,,,,◎,,ジャンク,,');
+    expect(lines[2]).toBe('2026-10-02,,,,,,×,,,,,"むくみ, だるい\n早寝"');
+  });
+});
+
+describe('目標の進み具合', () => {
+  it('第1目標は最終目標より上で一番重いマイルストーン', () => {
+    expect(firstGoal(settings)).toBe(60);
+    expect(firstGoal({ ...settings, milestones: [53] })).toBeNull();
+  });
+  it('開始65kg→目標53kgで現在59kgなら50%、増えても0%にとどめる', () => {
+    expect(goalProgress(65, 59, 53)).toBeCloseTo(0.5);
+    expect(goalProgress(65, 66, 53)).toBe(0);
+    expect(goalProgress(65, 52, 53)).toBe(1);
+    expect(goalProgress(null, 60, 53)).toBeNull();
+  });
+});
+
+describe('月次計測の比較', () => {
+  const list = [
+    { date: '2026-08-01', waist: 86, updatedAt: '' },
+    { date: '2026-09-01', waist: 85, updatedAt: '' },
+    { date: '2026-10-01', waist: 83.5, hip: 96, updatedAt: '' },
+  ];
+  it('前回と開始時（最初の計測）を返し、差を計算する', () => {
+    const { current, previous, first } = measurementContext(list, '2026-10-01');
+    expect(previous?.date).toBe('2026-09-01');
+    expect(first?.date).toBe('2026-08-01');
+    expect(measureDiff(current, previous, 'waist')).toBeCloseTo(-1.5);
+    expect(measureDiff(current, first, 'waist')).toBeCloseTo(-2.5);
+    expect(measureDiff(current, previous, 'hip')).toBeNull();
+  });
+  it('最初の計測日には前回・開始時はない', () => {
+    const c = measurementContext(list, '2026-08-01');
+    expect(c.previous).toBeUndefined();
+    expect(c.first).toBeUndefined();
+  });
+});
+
+describe('有酸素の提案', () => {
+  it('設定の分数で判定、1〜9分は×、0分は提案しない', () => {
+    expect(suggestCardioLevel(0, settings)).toBeUndefined();
+    expect(suggestCardioLevel(5, settings)).toBe('none');
+    expect(suggestCardioLevel(10, settings)).toBe('light');
+    expect(suggestCardioLevel(30, settings)).toBe('good');
   });
 });

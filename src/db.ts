@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { DailyRecord, Settings } from './types';
+import type { DailyRecord, ExerciseEntry, Measurement, Settings } from './types';
 
 /** ?demo=1 のときは別DBを使い、サンプル値が本番データに混ざらないようにする */
 export const IS_DEMO =
@@ -8,9 +8,12 @@ export const IS_DEMO =
 class HealthDB extends Dexie {
   daily!: Table<DailyRecord, string>;
   settings!: Table<Settings, string>;
+  exercises!: Table<ExerciseEntry, number>;
+  measurements!: Table<Measurement, string>;
   constructor(name: string) {
     super(name);
     this.version(1).stores({ daily: 'date', settings: 'id' });
+    this.version(2).stores({ daily: 'date', settings: 'id', exercises: '++id, date', measurements: 'date' });
   }
 }
 

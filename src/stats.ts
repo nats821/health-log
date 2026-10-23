@@ -1,5 +1,5 @@
 import { addDays, weekStart } from './date';
-import type { DailyRecord, Settings } from './types';
+import type { DailyRecord, ExerciseEntry, Level, MeasureKey, Measurement, Settings } from './types';
 
 export type NumKey = 'weight' | 'bodyFat';
 
@@ -100,3 +100,49 @@ export function nextMilestone(current: number, settings: Settings) {
 }
 
 export const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** 運動詳細の有酸素分数の合計 */
+export function cardioMinutes(entries: ExerciseEntry[]) {
+  return entries.filter((e) => e.kind === 'cardio').reduce((sum, e) => sum + (e.minutes ?? 0), 0);
+}
+
+/** 有酸素の分数から設定の基準で ×/○/◎ を提案（0分なら提案しない） */
+export function suggestCardioLevel(minutes: number, settings: Settings): Level | undefined {
+  if (minutes <= 0) return undefined;
+  if (minutes >= settings.cardioGoodMin) return 'good';
+  if (minutes >= settings.cardioLightMin) return 'light';
+  return 'none';
+}
+
+/** 指定日の計測と、前回・初回の計測 */
+export function measurementContext(list: Measurement[], date: string) {
+  const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+  const current = sorted.find((m) => m.date === date);
+  const before = sorted.filter((m) => m.date < date);
+  const previous = before[before.length - 1];
+  const first = sorted[0] && sorted[0].date < date ? sorted[0] : undefined;
+  return { current, previous, first };
+}
+
+export function measureDiff(a: Measurement | undefined, b: Measurement | undefined, key: MeasureKey) {
+  const x = a?.[key];
+  const y = b?.[key];
+  return typeof x === 'number' && typeof y === 'number' ? x - y : null;
+}
+
+/** 運動したとみなす日：○◎の筋トレ・有酸素、または運動詳細の記録あり */
+export function didExercise(r: DailyRecord | undefined, entryCount: number) {
+  return entryCount > 0 || ['light', 'good'].includes(r?.strength ?? '') || ['light', 'good'].includes(r?.cardio ?? '');
+}
+
+/** 第1目標（最終目標より上で一番重いマイルストーン） */
+export function firstGoal(settings: Settings) {
+  const above = settings.milestones.filter((m) => m > settings.goalWeight);
+  return above.length ? Math.max(...above) : null;
+}
+
+/** 開始体重から最終目標までの進み具合（0〜1）。増えた場合は0にとどめる */
+export function goalProgress(start: number | null, current: number | null, goal: number) {
+  if (start == null || current == null || start <= goal) return null;
+  return Math.min(1, Math.max(0, (start - current) / (start - goal)));
+}

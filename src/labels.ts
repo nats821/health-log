@@ -1,4 +1,4 @@
-import type { Energy, Level, Meal, Period } from './types';
+import type { Energy, ExerciseKind, Level, Meal, MeasureKey, Period } from './types';
 
 export const LEVEL_LABEL: Record<Level, string> = { none: '×', light: '○', good: '◎' };
 export const ENERGY_LABEL: Record<Energy, string> = { good: '元気', normal: '普通', tired: 'だるい' };
@@ -18,3 +18,15 @@ export const STRENGTH_HINT: Record<Level, string> = {
 export function cardioHint(lightMin: number, goodMin: number): Record<Level, string> {
   return { none: 'なし', light: `${lightMin}〜${goodMin - 1}分`, good: `${goodMin}分以上` };
 }
+
+export const KIND_LABEL: Record<ExerciseKind, string> = { strength: '筋トレ', cardio: '有酸素', other: 'その他' };
+
+export const MEASURE_LABEL: Record<MeasureKey, string> = {
+  neck: '首周り',
+  waist: 'おへそ周り',
+  hip: 'ヒップ',
+  thigh: '右太もも',
+  calf: '右ふくらはぎ',
+  ankle: '足首',
+  upperArm: '二の腕',
+};

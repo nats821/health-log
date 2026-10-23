@@ -4,7 +4,7 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
-import { addDays, formatJa, formatShort, today } from '../date';
+import { addDays, formatJa, formatShort, parseISO, today } from '../date';
 import { db } from '../db';
 import { compareWindows, type NumKey, rollingSeries, round1 } from '../stats';
 import type { DailyRecord } from '../types';
@@ -17,13 +17,16 @@ const RANGES = [
   { id: '3m', label: '3月', days: 91 },
   { id: '6m', label: '6月', days: 182 },
   { id: '1y', label: '1年', days: 365 },
+  { id: 'all', label: '全期間', days: 0 },
 ];
 
 export default function Graph() {
   const records = useLiveQuery(() => db.daily.toArray(), []);
   const [range, setRange] = useState('1m');
   if (!records) return null;
-  const days = RANGES.find((r) => r.id === range)!.days;
+  const earliest = records.reduce((min, r) => (r.date < min ? r.date : min), today());
+  const fixed = RANGES.find((r) => r.id === range)!.days;
+  const days = fixed || Math.max(7, Math.round((parseISO(today()).getTime() - parseISO(earliest).getTime()) / 86400000) + 1);
 
   return (
     <div className="stack">
@@ -78,14 +81,14 @@ function MetricChart(props: {
         <div className="chart-box">
           <Line
             data={{
-              labels: series.map((p) => formatShort(p.date)),
+              labels: series.map((p) => (days > 400 ? p.date.slice(2, 7).replace('-', '/') : formatShort(p.date))),
               datasets: [
                 {
                   label: '日々の値',
                   data: series.map((p) => p.value),
                   borderColor: color,
                   backgroundColor: color,
-                  pointRadius: days > 100 ? 1.5 : 3,
+                  pointRadius: days > 400 ? 1 : days > 100 ? 1.5 : 3,
                   showLine: false,
                 },
                 {

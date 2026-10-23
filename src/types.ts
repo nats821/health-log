@@ -11,6 +11,7 @@ export interface DailyRecord {
   bodyFat?: number;
   sleepMinutes?: number;
   energy?: Energy;
+  steps?: number; // 任意（過去データの取り込みなど）
   // 夜
   neat?: Level;
   strength?: Level;
@@ -18,6 +19,7 @@ export interface DailyRecord {
   meal?: Meal; // 自己評価。医学的判定ではない
   period?: Period;
   memo?: string;
+  importedFrom?: string; // 過去データ取り込みで作った記録の印（取り消し用）
   morningAt?: string;
   eveningAt?: string;
   updatedAt: string;
@@ -33,3 +35,29 @@ export interface Settings {
   cardioLightMin: number; // ○の下限（分）
   cardioGoodMin: number; // ◎の下限（分）
 }
+
+export type ExerciseKind = 'strength' | 'cardio' | 'other';
+
+/** 運動の詳細（任意）。重さ・回数・セットは入れなくてもよい */
+export interface ExerciseEntry {
+  id?: number;
+  date: string;
+  kind: ExerciseKind;
+  name: string;
+  minutes?: number;
+  weightKg?: number;
+  reps?: number;
+  sets?: number;
+  createdAt: string;
+}
+
+export const MEASURE_KEYS = ['neck', 'waist', 'hip', 'thigh', 'calf', 'ankle', 'upperArm'] as const;
+export type MeasureKey = (typeof MEASURE_KEYS)[number];
+
+/** 月次ボディチェック（cm）。写真は Phase 3 で別管理 */
+export type Measurement = Partial<Record<MeasureKey, number>> & {
+  date: string;
+  memo?: string;
+  importedFrom?: string;
+  updatedAt: string;
+};

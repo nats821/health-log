@@ -1,7 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
+import type { Go } from '../App';
 import { useEffect, useState } from 'react';
+import { DateField } from '../components/DateField';
 import { Segmented } from '../components/Segmented';
 import { addDays, today } from '../date';
+import { cardioMinutes, suggestCardioLevel } from '../stats';
 import { db, getSettings, saveDaily } from '../db';
 import { cardioHint, LEVEL_LABEL, MEAL_LABEL, NEAT_HINT, PERIOD_LABEL, STRENGTH_HINT } from '../labels';
 import type { Level, Meal, Period } from '../types';
@@ -10,9 +13,9 @@ const LEVELS: Level[] = ['none', 'light', 'good'];
 const levelOptions = (hints: Record<Level, string>) =>
   LEVELS.map((v) => ({ value: v, label: LEVEL_LABEL[v], hint: hints[v] }));
 
-export default function Evening({ onSaved }: { onSaved: () => void }) {
+export default function Evening({ initialDate, go, onSaved }: { initialDate?: string; go: Go; onSaved: () => void }) {
   const settings = useLiveQuery(getSettings, []);
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(initialDate ?? today());
   const [neat, setNeat] = useState<Level | undefined>();
   const [strength, setStrength] = useState<Level | undefined>();
   const [cardio, setCardio] = useState<Level | undefined>();
@@ -33,7 +36,7 @@ export default function Evening({ onSaved }: { onSaved: () => void }) {
     })();
   }, [date]);
 
-  const save = async () => {
+  const save = async (leave = true) => {
     await saveDaily(date, {
       neat,
       strength,
@@ -43,8 +46,12 @@ export default function Evening({ onSaved }: { onSaved: () => void }) {
       memo: memo.trim() || undefined,
       eveningAt: new Date().toISOString(),
     });
-    onSaved();
+    if (leave) onSaved();
   };
+
+  const entries = useLiveQuery(() => db.exercises.where('date').equals(date).toArray(), [date]) ?? [];
+  const cMin = cardioMinutes(entries);
+  const suggested = settings ? suggestCardioLevel(cMin, settings) : undefined;
 
   const cHint = settings ? cardioHint(settings.cardioLightMin, settings.cardioGoodMin) : cardioHint(10, 30);
 
@@ -54,13 +61,21 @@ export default function Evening({ onSaved }: { onSaved: () => void }) {
         <h1>夜の記録</h1>
       </header>
       <section className="card form">
-        <label className="field">
-          <span>日付</span>
-          <input type="date" value={date} max={today()} onChange={(e) => e.target.value && setDate(e.target.value)} />
-        </label>
+        <DateField value={date} onChange={setDate} />
         <LevelField title="NEAT（日常の動き）" value={neat} onChange={setNeat} options={levelOptions(NEAT_HINT)} />
         <LevelField title="筋トレ" value={strength} onChange={setStrength} options={levelOptions(STRENGTH_HINT)} />
         <LevelField title="有酸素" value={cardio} onChange={setCardio} options={levelOptions(cHint)} />
+        {cMin > 0 && (
+          <p className="muted small hint-row">
+            運動の詳細では有酸素 合計{cMin}分
+            {suggested && suggested !== cardio && (
+              <button className="link" onClick={() => setCardio(suggested)}>→ {LEVEL_LABEL[suggested]}にする</button>
+            )}
+          </p>
+        )}
+        <button className="link left" onClick={async () => { await save(false); go('exercise', date); }}>
+          ＋ 運動の詳細を記録する（任意）
+        </button>
         <div className="field">
           <span>食事</span>
           <Segmented
@@ -82,7 +97,7 @@ export default function Evening({ onSaved }: { onSaved: () => void }) {
           <span>メモ</span>
           <textarea rows={3} placeholder="気づいたこと、体調など（任意）" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </label>
-        <button className="primary" onClick={save}>保存する</button>
+        <button className="primary" onClick={() => save()}>保存する</button>
       </section>
     </div>
   );

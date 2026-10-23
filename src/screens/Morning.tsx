@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DateField } from '../components/DateField';
 import { Segmented } from '../components/Segmented';
 import { today } from '../date';
 import { db, saveDaily } from '../db';
@@ -7,8 +8,8 @@ import type { Energy } from '../types';
 
 const num = (s: string) => (s.trim() === '' ? undefined : Number(s.replace(',', '.')));
 
-export default function Morning({ onSaved }: { onSaved: () => void }) {
-  const [date, setDate] = useState(today());
+export default function Morning({ initialDate, onSaved }: { initialDate?: string; onSaved: () => void }) {
+  const [date, setDate] = useState(initialDate ?? today());
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [sleepH, setSleepH] = useState('');
@@ -52,10 +53,7 @@ export default function Morning({ onSaved }: { onSaved: () => void }) {
         <h1>朝の記録</h1>
       </header>
       <section className="card form">
-        <label className="field">
-          <span>日付</span>
-          <input type="date" value={date} max={today()} onChange={(e) => e.target.value && setDate(e.target.value)} />
-        </label>
+        <DateField value={date} onChange={setDate} />
         <div className="grid2">
           <label className="field">
             <span>体重</span>
