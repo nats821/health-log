@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { DateField } from '../components/DateField';
 import { formatJa, today } from '../date';
-import { db } from '../db';
+import { db, getSettings } from '../db';
 import { MEASURE_LABEL } from '../labels';
 import { measureDiff, measurementContext } from '../stats';
 import { MEASURE_KEYS, type MeasureKey, type Measurement } from '../types';
@@ -15,6 +15,7 @@ export default function Monthly({ initialDate, notify }: { initialDate?: string;
   const [form, setForm] = useState<Form>(empty());
   const [memo, setMemo] = useState('');
   const all = useLiveQuery(() => db.measurements.toArray(), []);
+  const settings = useLiveQuery(getSettings, []);
 
   useEffect(() => {
     db.measurements.get(date).then((m) => {
@@ -23,8 +24,9 @@ export default function Monthly({ initialDate, notify }: { initialDate?: string;
     });
   }, [date]);
 
-  if (!all) return null;
-  const { previous, first } = measurementContext(all, date);
+  if (!all || !settings) return null;
+  const start = settings.startDate ?? '';
+  const { previous, first } = measurementContext(all, date, start);
 
   const save = async () => {
     const m: Measurement = { date, updatedAt: new Date().toISOString() };
@@ -76,6 +78,7 @@ export default function Monthly({ initialDate, notify }: { initialDate?: string;
         </table>
         <p className="muted small">
           前回：{previous ? formatJa(previous.date) : 'なし'}　開始時：{first ? formatJa(first.date) : 'なし'}
+          （今回のダイエットの計測どうしで比べます）
         </p>
         <label className="field">
           <span>メモ</span>
@@ -86,7 +89,9 @@ export default function Monthly({ initialDate, notify }: { initialDate?: string;
 
       <section className="card soon">
         <p className="label">比較写真</p>
-        <p className="muted small">正面・側面・背面の写真は、プライバシー保護の仕組みを確認してから（Phase 3）追加します。</p>
+        <p className="muted small">
+          正面・横・後ろの写真は、まだ保存できません。本人認証と暗号化などの保護の仕組みを用意してから追加します。
+        </p>
       </section>
 
       {history.length > 0 && (
@@ -95,7 +100,10 @@ export default function Monthly({ initialDate, notify }: { initialDate?: string;
           <ul className="history">
             {history.map((m) => (
               <li key={m.date}>
-                <button className="link left" onClick={() => setDate(m.date)}>{formatJa(m.date)}・{m.date.slice(0, 4)}</button>
+                <button className="link left" onClick={() => setDate(m.date)}>
+                  {formatJa(m.date)}・{m.date.slice(0, 4)}
+                  {m.date < start && <span className="tag past">過去の記録</span>}
+                </button>
                 <span className="muted small">{MEASURE_KEYS.filter((k) => m[k] != null).map((k) => `${MEASURE_LABEL[k]} ${m[k]}`).join(' / ')}</span>
               </li>
             ))}

@@ -14,13 +14,34 @@ class HealthDB extends Dexie {
     super(name);
     this.version(1).stores({ daily: 'date', settings: 'id' });
     this.version(2).stores({ daily: 'date', settings: 'id', exercises: '++id, date', measurements: 'date' });
+    // v3: 将来の同期に備え、運動の記録に端末共通のIDを付ける
+    this.version(3)
+      .stores({ daily: 'date', settings: 'id', exercises: '++id, date, &uid', measurements: 'date' })
+      .upgrade((tx) =>
+        tx.table('exercises').toCollection().modify((e: ExerciseEntry) => {
+          if (!e.uid) e.uid = newId();
+        }),
+      );
+    this.exercises.hook('creating', (_key, obj) => {
+      if (!obj.uid) obj.uid = newId();
+    });
   }
+}
+
+export function newId() {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 export const db = new HealthDB(IS_DEMO ? 'health-log-demo' : 'health-log');
 
+/** 今回のダイエットの開始日 */
+export const CURRENT_DIET_START = '2026-10-23';
+
 export const DEFAULT_SETTINGS: Settings = {
   id: 'main',
+  startDate: CURRENT_DIET_START,
   goalWeight: 53,
   milestones: [60, 55, 53],
   sleepHighlightMinutes: 360,
@@ -29,7 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export async function getSettings(): Promise<Settings> {
-  return { ...DEFAULT_SETTINGS, ...(await db.settings.get('main')) };
+  const stored = await db.settings.get('main');
+  return { ...DEFAULT_SETTINGS, ...stored, startDate: stored?.startDate || DEFAULT_SETTINGS.startDate };
 }
 
 export async function saveSettings(s: Settings) {

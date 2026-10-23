@@ -3,6 +3,8 @@ export type Level = 'none' | 'light' | 'good';
 export type Energy = 'good' | 'normal' | 'tired';
 export type Meal = 'healthy' | 'junk';
 export type Period = 'none' | 'pre' | 'during';
+export type Snack = 'none' | 'some';
+export type Stool = 'hard' | 'normal' | 'soft';
 
 export interface DailyRecord {
   date: string; // YYYY-MM-DD（端末のローカル日付）
@@ -18,6 +20,11 @@ export interface DailyRecord {
   cardio?: Level;
   meal?: Meal; // 自己評価。医学的判定ではない
   period?: Period;
+  // 任意の生活記録（毎日の必須入力ではない）
+  snack?: Snack;
+  bowelCount?: number; // 0回も「記録あり」。未入力は undefined
+  stool?: Stool;
+  condition?: string; // 体調の変化
   memo?: string;
   importedFrom?: string; // 過去データ取り込みで作った記録の印（取り消し用）
   morningAt?: string;
@@ -41,6 +48,7 @@ export type ExerciseKind = 'strength' | 'cardio' | 'other';
 /** 運動の詳細（任意）。重さ・回数・セットは入れなくてもよい */
 export interface ExerciseEntry {
   id?: number;
+  uid?: string; // 端末をまたいでも重ならないID（将来の同期用）
   date: string;
   kind: ExerciseKind;
   name: string;

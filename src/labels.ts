@@ -1,22 +1,33 @@
-import type { Energy, ExerciseKind, Level, Meal, MeasureKey, Period } from './types';
+import type { Energy, ExerciseKind, Level, Meal, MeasureKey, Period, Snack, Stool } from './types';
 
 export const LEVEL_LABEL: Record<Level, string> = { none: '×', light: '○', good: '◎' };
 export const ENERGY_LABEL: Record<Energy, string> = { good: '元気', normal: '普通', tired: 'だるい' };
 export const MEAL_LABEL: Record<Meal, string> = { healthy: 'ヘルシー', junk: 'ジャンク' };
 export const PERIOD_LABEL: Record<Period, string> = { none: 'なし', pre: '生理前', during: '生理中' };
 
-export const NEAT_HINT: Record<Level, string> = {
-  none: 'ほぼ座りっぱなし',
-  light: '家事や買い物で適度に',
-  good: 'よく動いた',
-};
-export const STRENGTH_HINT: Record<Level, string> = {
-  none: 'なし・休息日',
-  light: '軽めに実施',
-  good: 'しっかり取り組んだ',
-};
+export const SNACK_LABEL: Record<Snack, string> = { none: 'なし', some: 'あり' };
+export const STOOL_LABEL: Record<Stool, string> = { hard: '硬め', normal: 'ふつう', soft: 'やわらかめ' };
+
+/** ボタンに出す短い説明 */
+export const NEAT_HINT: Record<Level, string> = { none: '座りがち', light: 'そこそこ', good: 'よく動いた' };
+export const STRENGTH_HINT: Record<Level, string> = { none: '実施なし', light: '軽く実施', good: 'しっかり' };
 export function cardioHint(lightMin: number, goodMin: number): Record<Level, string> {
-  return { none: 'なし', light: `${lightMin}〜${goodMin - 1}分`, good: `${goodMin}分以上` };
+  return { none: '実施なし', light: `${lightMin}〜${goodMin - 1}分`, good: `${goodMin}分以上` };
+}
+
+/** 選んだときに下に出す基準の説明 */
+export const NEAT_DESC: Record<Level, string> = {
+  none: '座っている・横になっている時間が長かった',
+  light: '家事や移動などでそこそこ動いた',
+  good: '一日を通してよく動いた',
+};
+export const STRENGTH_DESC: Record<Level, string> = {
+  none: '実施なし（休息日も大切です）',
+  light: '軽く実施',
+  good: 'しっかり実施',
+};
+export function cardioDesc(lightMin: number, goodMin: number): Record<Level, string> {
+  return { none: '実施なし', light: `${lightMin}分以上${goodMin}分未満`, good: `${goodMin}分以上` };
 }
 
 export const KIND_LABEL: Record<ExerciseKind, string> = { strength: '筋トレ', cardio: '有酸素', other: 'その他' };

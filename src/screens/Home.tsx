@@ -2,13 +2,15 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { Go } from '../App';
 import { formatJa, today } from '../date';
 import { db, getSettings } from '../db';
-import { compareWindows, firstGoal, goalProgress, latest, round1, startWeight, weeklyStrengthCount } from '../stats';
+import { compareWindows, currentPeriod, firstGoal, goalProgress, latest, round1, startWeight, weeklyStrengthCount } from '../stats';
 
 export default function Home({ go }: { go: Go }) {
-  const records = useLiveQuery(() => db.daily.toArray(), []);
+  const allRecords = useLiveQuery(() => db.daily.toArray(), []);
   const lastMeasure = useLiveQuery(() => db.measurements.orderBy('date').last(), []);
   const settings = useLiveQuery(getSettings, []);
-  if (!records || !settings) return null;
+  if (!allRecords || !settings) return null;
+  // 平均・達成率・増減は今回のダイエット期間（開始日以降）の記録だけで計算
+  const records = currentPeriod(allRecords, settings);
 
   const t = today();
   const todayRec = records.find((r) => r.date === t);
@@ -63,7 +65,7 @@ export default function Home({ go }: { go: Go }) {
           <SummaryRow
             label="ダイエット開始時から"
             value={fromStart != null ? `${signed(fromStart)}kg` : '—'}
-            note={start != null ? `開始 ${start.toFixed(1)}kg` : '設定で開始日を決められます'}
+            note={start != null ? `開始 ${start.toFixed(1)}kg（${formatJa(settings.startDate!)}〜）` : '開始日以降の最初の体重が基準になります'}
           />
           {goal1 != null && (
             <SummaryRow label={`第1目標 ${goal1}kg まで`} value={remaining(toGoal1)} />

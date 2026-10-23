@@ -1,8 +1,9 @@
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { DateField } from '../components/DateField';
 import { Segmented } from '../components/Segmented';
 import { today } from '../date';
-import { db, saveDaily } from '../db';
+import { db, getSettings, saveDaily } from '../db';
 import { ENERGY_LABEL } from '../labels';
 import type { Energy } from '../types';
 
@@ -16,6 +17,11 @@ export default function Morning({ initialDate, onSaved }: { initialDate?: string
   const [sleepM, setSleepM] = useState('');
   const [energy, setEnergy] = useState<Energy | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const settings = useLiveQuery(getSettings, []);
+  const h0 = num(sleepH);
+  const m0 = num(sleepM);
+  const sleepTotal = h0 == null && m0 == null ? null : (h0 ?? 0) * 60 + (m0 ?? 0);
+  const shortSleep = !!settings?.sleepHighlightMinutes && sleepTotal != null && sleepTotal < settings.sleepHighlightMinutes;
 
   useEffect(() => {
     db.daily.get(date).then((r) => {
@@ -70,7 +76,7 @@ export default function Morning({ initialDate, onSaved }: { initialDate?: string
             </div>
           </label>
         </div>
-        <div className="field">
+        <div className={`field ${shortSleep ? 'short-sleep' : ''}`}>
           <span>睡眠時間</span>
           <div className="grid2">
             <div className="with-unit">
@@ -83,6 +89,7 @@ export default function Morning({ initialDate, onSaved }: { initialDate?: string
             </div>
           </div>
         </div>
+        {shortSleep && <p className="muted small sleep-hint">短めの睡眠として、あとから振り返れるよう黄色で残ります</p>}
         <div className="field">
           <span>元気度</span>
           <Segmented

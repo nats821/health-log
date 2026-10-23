@@ -109,13 +109,13 @@ export default function SettingsScreen({ go, notify }: { go: Go; notify: (m: str
             />
           </label>
           <label className="field">
-            <span>開始日</span>
-            <input type="date" value={s.startDate ?? ''} onChange={(e) => set({ startDate: e.target.value || undefined })} />
+            <span>今回のダイエット開始日</span>
+            <input type="date" value={s.startDate ?? ''} onChange={(e) => e.target.value && set({ startDate: e.target.value })} />
           </label>
           <label className="field">
             <span>開始時の体重</span>
             <div className="with-unit">
-              <input inputMode="decimal" placeholder="空欄＝開始日以降の最初の記録" value={s.startWeight ?? ''} onChange={(e) => set({ startWeight: numOr(e.target.value) })} />
+              <input inputMode="decimal" placeholder="空欄＝開始日以降の最初の体重" value={s.startWeight ?? ''} onChange={(e) => set({ startWeight: numOr(e.target.value) })} />
               <em>kg</em>
             </div>
           </label>
@@ -152,11 +152,16 @@ export default function SettingsScreen({ go, notify }: { go: Go; notify: (m: str
 
       <section className="card form">
         <h2>データ</h2>
-        <p className="muted small">
-          記録はこの端末のブラウザ内だけに保存され、外部には送信されません。
-          iPhoneとMacのデータは別々です（同期は後の段階で検討）。
-          {persisted === false && ' ※ 長期保存の許可が得られていません。iPhoneでは「ホーム画面に追加」して使うと消えにくくなります。'}
-        </p>
+        <div className="notice">
+          <p className="notice-title">記録は「この端末の中」だけに保存されています</p>
+          <ul>
+            <li><b>iPhoneとMacのデータは別々</b>です。iPhoneで入れた記録はMacには表示されません（自動同期はまだありません）。</li>
+            <li>ふだん記録する端末は<b>iPhoneに決めて</b>使うのがおすすめです。</li>
+            <li>端末の故障やSafariのデータ削除に備えて、<b>月に1回「バックアップを保存」</b>してください。</li>
+            <li>記録は外部のサーバーには送信されません。</li>
+          </ul>
+          {persisted === false && <p className="small">※ 長期保存の許可がまだありません。iPhoneでは「ホーム画面に追加」して使うと消えにくくなります。</p>}
+        </div>
         <button className="secondary" onClick={() => go('import')}>過去データ（Excel）を取り込む</button>
         {imported ? (
           <button className="secondary" onClick={undoImport}>Excelの取り込みを取り消す（{imported}件）</button>

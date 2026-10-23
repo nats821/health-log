@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dailyToCsv } from './csv';
 import { addDays, weekStart } from './date';
-import { compareWindows, firstGoal, goalProgress, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, weeklyStrengthCount, windowAverage } from './stats';
+import { compareWindows, currentPeriod, firstGoal, goalProgress, judgeTrend, latest, measureDiff, measurementContext, nextMilestone, rollingSeries, startWeight, suggestCardioLevel, weeklyStrengthCount, windowAverage } from './stats';
 import type { DailyRecord, Settings } from './types';
 
 const rec = (date: string, extra: Partial<DailyRecord> = {}): DailyRecord => ({ date, updatedAt: '', ...extra });
@@ -86,8 +86,8 @@ describe('CSV', () => {
     ]);
     expect(csv.startsWith('﻿日付,')).toBe(true);
     const lines = csv.slice(1).split('\r\n');
-    expect(lines[1]).toBe('2026-10-01,64.5,,,,,,◎,,ジャンク,,');
-    expect(lines[2]).toBe('2026-10-02,,,,,,×,,,,,"むくみ, だるい\n早寝"');
+    expect(lines[1]).toBe('2026-10-01,64.5,,,,,,◎,,ジャンク,,,,,,,');
+    expect(lines[2]).toBe('2026-10-02,,,,,,×,,,,,"むくみ, だるい\n早寝",,,,,');
   });
 });
 
@@ -131,5 +131,27 @@ describe('有酸素の提案', () => {
     expect(suggestCardioLevel(5, settings)).toBe('none');
     expect(suggestCardioLevel(10, settings)).toBe('light');
     expect(suggestCardioLevel(30, settings)).toBe('good');
+  });
+});
+
+describe('今回のダイエット期間と増減の判定', () => {
+  it('開始日より前の記録（過去データ）は除く', () => {
+    const r = [rec('2023-05-01', { weight: 60 }), rec('2026-10-23', { weight: 65 })];
+    expect(currentPeriod(r, { ...settings, startDate: '2026-10-23' }).map((x) => x.date)).toEqual(['2026-10-23']);
+  });
+  it('記録が5日未満なら判定しない、差が小さければ横ばい', () => {
+    const days = (start: string, n: number, w: number) => Array.from({ length: n }, (_, i) => rec(addDays(start, i), { weight: w }));
+    const base = [...days('2026-10-01', 7, 65), ...days('2026-10-15', 7, 64.5)];
+    expect(judgeTrend(compareWindows(base, 'weight', '2026-10-28'), 0.2)).toBe('down');
+    const flat = [...days('2026-10-01', 7, 65), ...days('2026-10-15', 7, 64.9)];
+    expect(judgeTrend(compareWindows(flat, 'weight', '2026-10-28'), 0.2)).toBe('flat');
+    const few = [...days('2026-10-01', 7, 65), ...days('2026-10-15', 3, 64)];
+    expect(judgeTrend(compareWindows(few, 'weight', '2026-10-28'), 0.2)).toBe('insufficient');
+  });
+  it('計測の前回・開始時は今回の期間から選ぶ', () => {
+    const list = [{ date: '2023-04-01', waist: 87, updatedAt: '' }, { date: '2026-10-25', waist: 84, updatedAt: '' }];
+    const c = measurementContext(list, '2026-10-25', '2026-10-23');
+    expect(c.previous).toBeUndefined();
+    expect(c.first).toBeUndefined();
   });
 });

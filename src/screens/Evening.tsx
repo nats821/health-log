@@ -6,8 +6,8 @@ import { Segmented } from '../components/Segmented';
 import { addDays, today } from '../date';
 import { cardioMinutes, suggestCardioLevel } from '../stats';
 import { db, getSettings, saveDaily } from '../db';
-import { cardioHint, LEVEL_LABEL, MEAL_LABEL, NEAT_HINT, PERIOD_LABEL, STRENGTH_HINT } from '../labels';
-import type { Level, Meal, Period } from '../types';
+import { cardioDesc, cardioHint, LEVEL_LABEL, MEAL_LABEL, NEAT_DESC, NEAT_HINT, PERIOD_LABEL, SNACK_LABEL, STOOL_LABEL, STRENGTH_DESC, STRENGTH_HINT } from '../labels';
+import type { Level, Meal, Period, Snack, Stool } from '../types';
 
 const LEVELS: Level[] = ['none', 'light', 'good'];
 const levelOptions = (hints: Record<Level, string>) =>
@@ -20,8 +20,14 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
   const [strength, setStrength] = useState<Level | undefined>();
   const [cardio, setCardio] = useState<Level | undefined>();
   const [meal, setMeal] = useState<Meal>('healthy');
-  const [period, setPeriod] = useState<Period>('none');
+  const [period, setPeriod] = useState<Period | undefined>();
+  const [yesterdayPeriod, setYesterdayPeriod] = useState<Period | undefined>();
+  const [snack, setSnack] = useState<Snack | undefined>();
+  const [bowel, setBowel] = useState('');
+  const [stool, setStool] = useState<Stool | undefined>();
+  const [condition, setCondition] = useState('');
   const [memo, setMemo] = useState('');
+  const [showMore, setShowMore] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -31,8 +37,14 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
       setCardio(r?.cardio);
       setMeal(r?.meal ?? 'healthy');
       setMemo(r?.memo ?? '');
-      // 生理の状態は前日から引き継ぐと入力が楽
-      setPeriod(r?.period ?? (await db.daily.get(addDays(date, -1)))?.period ?? 'none');
+      setSnack(r?.snack);
+      setBowel(r?.bowelCount?.toString() ?? '');
+      setStool(r?.stool);
+      setCondition(r?.condition ?? '');
+      setShowMore(r?.snack != null || r?.bowelCount != null || r?.stool != null || !!r?.condition);
+      // 生理は未入力のまま。前日の状態はワンタップで引き継げるように表示だけする
+      setPeriod(r?.period);
+      setYesterdayPeriod((await db.daily.get(addDays(date, -1)))?.period);
     })();
   }, [date]);
 
@@ -43,6 +55,10 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
       cardio,
       meal,
       period,
+      snack,
+      bowelCount: bowel.trim() === '' || isNaN(Number(bowel)) ? undefined : Math.max(0, Math.round(Number(bowel))),
+      stool,
+      condition: condition.trim() || undefined,
       memo: memo.trim() || undefined,
       eveningAt: new Date().toISOString(),
     });
@@ -62,9 +78,9 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
       </header>
       <section className="card form">
         <DateField value={date} onChange={setDate} />
-        <LevelField title="NEAT（日常の動き）" value={neat} onChange={setNeat} options={levelOptions(NEAT_HINT)} />
-        <LevelField title="筋トレ" value={strength} onChange={setStrength} options={levelOptions(STRENGTH_HINT)} />
-        <LevelField title="有酸素" value={cardio} onChange={setCardio} options={levelOptions(cHint)} />
+        <LevelField title="NEAT（日常活動量）" value={neat} onChange={setNeat} options={levelOptions(NEAT_HINT)} desc={NEAT_DESC} />
+        <LevelField title="筋トレ" value={strength} onChange={setStrength} options={levelOptions(STRENGTH_HINT)} desc={STRENGTH_DESC} />
+        <LevelField title="有酸素運動" value={cardio} onChange={setCardio} options={levelOptions(cHint)} desc={settings ? cardioDesc(settings.cardioLightMin, settings.cardioGoodMin) : cardioDesc(10, 30)} />
         {cMin > 0 && (
           <p className="muted small hint-row">
             運動の詳細では有酸素 合計{cMin}分
@@ -86,17 +102,56 @@ export default function Evening({ initialDate, go, onSaved }: { initialDate?: st
           <p className="muted small">ジャンクを食べた日だけ切り替えればOK（自分の感覚での記録です）</p>
         </div>
         <div className="field">
-          <span>生理</span>
+          <span>
+            生理
+            <em className={period ? 'state' : 'state unset'}>{period ? '' : '未入力'}</em>
+          </span>
           <Segmented
+            clearable
             value={period}
-            onChange={(v) => v && setPeriod(v)}
+            onChange={setPeriod}
             options={(['none', 'pre', 'during'] as Period[]).map((v) => ({ value: v, label: PERIOD_LABEL[v] }))}
           />
+          {!period && yesterdayPeriod && yesterdayPeriod !== 'none' && (
+            <button className="link left small" onClick={() => setPeriod(yesterdayPeriod)}>
+              昨日と同じ（{PERIOD_LABEL[yesterdayPeriod]}）にする
+            </button>
+          )}
         </div>
+
+        <button className="link left" onClick={() => setShowMore(!showMore)}>
+          {showMore ? '− ' : '＋ '}間食・お通じ・体調（任意）
+        </button>
+        {showMore && (
+          <div className="more">
+            <div className="field">
+              <span>間食<em className={snack ? 'state' : 'state unset'}>{snack ? '' : '未入力'}</em></span>
+              <Segmented clearable value={snack} onChange={setSnack} options={(['none', 'some'] as Snack[]).map((v) => ({ value: v, label: SNACK_LABEL[v] }))} />
+            </div>
+            <div className="grid2">
+              <label className="field">
+                <span>お通じ</span>
+                <div className="with-unit">
+                  <input inputMode="numeric" placeholder="未入力" value={bowel} onChange={(e) => setBowel(e.target.value)} />
+                  <em>回</em>
+                </div>
+              </label>
+            </div>
+            <div className="field">
+              <span>便の状態<em className={stool ? 'state' : 'state unset'}>{stool ? '' : '未入力'}</em></span>
+              <Segmented clearable value={stool} onChange={setStool} options={(['hard', 'normal', 'soft'] as Stool[]).map((v) => ({ value: v, label: STOOL_LABEL[v] }))} />
+            </div>
+            <label className="field">
+              <span>体調の変化</span>
+              <input placeholder="むくみ、肌の調子、だるさなど" value={condition} onChange={(e) => setCondition(e.target.value)} />
+            </label>
+          </div>
+        )}
         <label className="field">
           <span>メモ</span>
-          <textarea rows={3} placeholder="気づいたこと、体調など（任意）" value={memo} onChange={(e) => setMemo(e.target.value)} />
+          <textarea rows={3} placeholder="気づいたことなど（任意）" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </label>
+        <p className="muted small">選んだボタンをもう一度押すと「未入力」に戻ります。「×」「なし」とは別に保存されます。</p>
         <button className="primary" onClick={() => save()}>保存する</button>
       </section>
     </div>
@@ -108,6 +163,7 @@ function LevelField(props: {
   value: Level | undefined;
   onChange: (v: Level | undefined) => void;
   options: { value: Level; label: string; hint: string }[];
+  desc: Record<Level, string>;
 }) {
   return (
     <div className="field">
@@ -116,6 +172,7 @@ function LevelField(props: {
         <em className={props.value ? 'state' : 'state unset'}>{props.value ? '' : '未入力'}</em>
       </span>
       <Segmented clearable value={props.value} onChange={props.onChange} options={props.options} />
+      {props.value && <p className="muted small">{LEVEL_LABEL[props.value]}：{props.desc[props.value]}</p>}
     </div>
   );
 }

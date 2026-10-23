@@ -1,8 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import type { Go } from '../App';
-import { formatJa, today } from '../date';
-import { db, getSettings, saveSettings } from '../db';
+import { formatJa } from '../date';
+import { db, getSettings } from '../db';
 import { fillEmpty, IMPORT_TAG, parseDietRows } from '../importDiet';
 import { LEVEL_LABEL, MEAL_LABEL, PERIOD_LABEL } from '../labels';
 
@@ -74,8 +74,6 @@ export default function Import({ go, notify }: { go: Go; notify: (m: string) => 
         }
       }
     });
-    // 開始日が未設定だと、過去データの最初の体重が「開始時」になってしまうので今日を開始日に
-    if (settings && !settings.startDate) await saveSettings({ ...settings, startDate: today() });
     setBusy(false);
     setDone(`${added}日分を追加${filled ? `・${filled}日分の空欄を補完` : ''}${kept ? `・${kept}日分は既存のまま` : ''}・計測${mAdded}件`);
     setRows(null);
@@ -204,8 +202,11 @@ export default function Import({ go, notify }: { go: Go; notify: (m: string) => 
           )}
 
           <section className="card form">
-            {settings && !settings.startDate && (
-              <p className="muted small">開始日が未設定のため、取り込みと同時に開始日を今日（{formatJa(today())}）に設定します。過去の体重が「開始時」として扱われないようにするためです。設定画面で変更できます。</p>
+            {settings?.startDate && (
+              <p className="muted small">
+                取り込んだデータは「過去のダイエット記録」として保存されます。今回のダイエット（{settings.startDate.replace(/-/g, '/')}〜）の
+                14日平均・達成率・開始時からの増減には使いません。グラフの「全期間」とカレンダーで見返せます。
+              </p>
             )}
             <button className="primary" disabled={busy || !existing || result.daily.length === 0} onClick={run}>
               {result.daily.length - conflicts.length}日分を取り込む

@@ -1,9 +1,9 @@
-import { ENERGY_LABEL, KIND_LABEL, LEVEL_LABEL, MEAL_LABEL, MEASURE_LABEL, PERIOD_LABEL } from './labels';
+import { ENERGY_LABEL, KIND_LABEL, LEVEL_LABEL, MEAL_LABEL, MEASURE_LABEL, PERIOD_LABEL, SNACK_LABEL, STOOL_LABEL } from './labels';
 import { type DailyRecord, type ExerciseEntry, MEASURE_KEYS, type Measurement } from './types';
 
 const HEADER = [
   '日付', '体重(kg)', '体脂肪率(%)', '睡眠(分)', '元気度', '歩数',
-  'NEAT', '筋トレ', '有酸素', '食事', '生理', 'メモ',
+  'NEAT', '筋トレ', '有酸素', '食事', '生理', 'メモ', '間食', 'お通じ(回)', '便の状態', '体調の変化', '区分',
 ];
 
 function cell(v: unknown): string {
@@ -30,6 +30,11 @@ export function dailyToCsv(records: DailyRecord[]): string {
         r.meal && MEAL_LABEL[r.meal],
         r.period && PERIOD_LABEL[r.period],
         r.memo,
+        r.snack && SNACK_LABEL[r.snack],
+        r.bowelCount,
+        r.stool && STOOL_LABEL[r.stool],
+        r.condition,
+        r.importedFrom ? '過去データ' : '',
       ].map(cell).join(','),
     );
   return '﻿' + [HEADER.join(','), ...rows].join('\r\n') + '\r\n';

@@ -5,25 +5,27 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { addDays, formatJa, formatShort, parseISO, today } from '../date';
-import { db } from '../db';
-import { compareWindows, type NumKey, rollingSeries, round1 } from '../stats';
+import { db, getSettings } from '../db';
+import { compareWindows, currentPeriod, judgeTrend, MIN_DAYS_FOR_TREND, type NumKey, rollingSeries, round1, type Trend } from '../stats';
 import type { DailyRecord } from '../types';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
 const RANGES = [
-  { id: '1w', label: '1週', days: 7 },
-  { id: '1m', label: '1月', days: 30 },
-  { id: '3m', label: '3月', days: 91 },
-  { id: '6m', label: '6月', days: 182 },
+  { id: '1w', label: '1週間', days: 7 },
+  { id: '1m', label: '1か月', days: 30 },
+  { id: '3m', label: '3か月', days: 91 },
+  { id: '6m', label: '6か月', days: 182 },
   { id: '1y', label: '1年', days: 365 },
   { id: 'all', label: '全期間', days: 0 },
 ];
 
 export default function Graph() {
   const records = useLiveQuery(() => db.daily.toArray(), []);
+  const settings = useLiveQuery(getSettings, []);
   const [range, setRange] = useState('1m');
-  if (!records) return null;
+  if (!records || !settings) return null;
+  const start = settings.startDate ?? '';
   const earliest = records.reduce((min, r) => (r.date < min ? r.date : min), today());
   const fixed = RANGES.find((r) => r.id === range)!.days;
   const days = fixed || Math.max(7, Math.round((parseISO(today()).getTime() - parseISO(earliest).getTime()) / 86400000) + 1);
@@ -38,19 +40,24 @@ export default function Graph() {
           <button key={r.id} className={r.id === range ? 'on' : ''} onClick={() => setRange(r.id)}>{r.label}</button>
         ))}
       </div>
-      <MetricChart records={records} metric="weight" title="体重" unit="kg" days={days} color="#a58fd0" avgColor="#e58fae" />
-      <MetricChart records={records} metric="bodyFat" title="体脂肪率" unit="%" days={days} color="#7fb6d9" avgColor="#e58fae" />
-      <p className="muted small center">平均は「記録件数」ではなく「直近14暦日」で計算しています。</p>
+      <MetricChart records={records} current={currentPeriod(records, settings)} start={start} metric="weight" title="体重" unit="kg" flat={0.2} days={days} color="#a58fd0" avgColor="#e58fae" />
+      <MetricChart records={records} current={currentPeriod(records, settings)} start={start} metric="bodyFat" title="体脂肪率" unit="%" flat={0.3} days={days} color="#7fb6d9" avgColor="#e58fae" />
+      <p className="muted small center">
+        平均は「記録件数」ではなく「直近14暦日」で計算しています。
+        比較は今回のダイエット（{start.replace(/-/g, '/')}〜）の記録だけを使い、灰色の点は過去の記録です。
+      </p>
     </div>
   );
 }
 
 function MetricChart(props: {
-  records: DailyRecord[]; metric: NumKey; title: string; unit: string; days: number; color: string; avgColor: string;
+  records: DailyRecord[]; current: DailyRecord[]; start: string; metric: NumKey; title: string; unit: string; flat: number;
+  days: number; color: string; avgColor: string;
 }) {
-  const { records, metric, title, unit, days, color, avgColor } = props;
+  const { records, current, start, metric, title, unit, flat, days, color, avgColor } = props;
   const t = today();
-  const cmp = compareWindows(records, metric, t);
+  const cmp = compareWindows(current, metric, t);
+  const trend = judgeTrend(cmp, flat);
   const series = useMemo(() => rollingSeries(records, metric, addDays(t, -(days - 1)), t), [records, metric, days, t]);
   const hasData = series.some((p) => p.value != null);
 
@@ -73,8 +80,8 @@ function MetricChart(props: {
         </div>
         <div className="stat">
           <p className="label">変化</p>
-          <p className={`value trend ${trendClass(cmp.diff)}`}>{cmp.diff != null ? diffText(cmp.diff) : '—'}<span className="unit">{cmp.diff != null ? unit : ''}</span></p>
-          <p className="muted small">{trendWord(cmp.diff)}</p>
+          <p className={`value trend ${trend}`}>{trend !== 'insufficient' && cmp.diff != null ? diffText(cmp.diff) : '—'}<span className="unit">{trend !== 'insufficient' ? unit : ''}</span></p>
+          <p className="muted small">{TREND_WORD[trend]}</p>
         </div>
       </div>
       {hasData ? (
@@ -87,7 +94,8 @@ function MetricChart(props: {
                   label: '日々の値',
                   data: series.map((p) => p.value),
                   borderColor: color,
-                  backgroundColor: color,
+                  backgroundColor: series.map((p) => (p.date < start ? '#cfcad8' : color)),
+                  pointBorderColor: series.map((p) => (p.date < start ? '#cfcad8' : color)),
                   pointRadius: days > 400 ? 1 : days > 100 ? 1.5 : 3,
                   showLine: false,
                 },
@@ -136,15 +144,9 @@ function diffText(d: number) {
   const r = round1(d);
   return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toFixed(1);
 }
-function trendClass(d: number | null) {
-  if (d == null) return '';
-  const r = round1(d);
-  return r < 0 ? 'down' : r > 0 ? 'up' : '';
-}
-function trendWord(d: number | null) {
-  if (d == null) return 'データがたまると表示';
-  const r = round1(d);
-  if (r < 0) return 'ゆるやかに減少';
-  if (r > 0) return '少し増加・波はつきもの';
-  return 'キープ';
-}
+const TREND_WORD: Record<Trend, string> = {
+  down: 'ゆるやかに減少',
+  up: '少し増加・波はつきもの',
+  flat: 'ほぼ横ばい',
+  insufficient: `記録が各${MIN_DAYS_FOR_TREND}日以上で判定`,
+};

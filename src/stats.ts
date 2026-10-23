@@ -115,9 +115,10 @@ export function suggestCardioLevel(minutes: number, settings: Settings): Level |
 }
 
 /** 指定日の計測と、前回・初回の計測 */
-export function measurementContext(list: Measurement[], date: string) {
-  const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
-  const current = sorted.find((m) => m.date === date);
+export function measurementContext(list: Measurement[], date: string, from = '') {
+  // 前回・開始時は今回のダイエット期間（from 以降）の計測から選ぶ
+  const sorted = [...list].filter((m) => m.date >= from).sort((a, b) => a.date.localeCompare(b.date));
+  const current = list.find((m) => m.date === date);
   const before = sorted.filter((m) => m.date < date);
   const previous = before[before.length - 1];
   const first = sorted[0] && sorted[0].date < date ? sorted[0] : undefined;
@@ -145,4 +146,21 @@ export function firstGoal(settings: Settings) {
 export function goalProgress(start: number | null, current: number | null, goal: number) {
   if (start == null || current == null || start <= goal) return null;
   return Math.min(1, Math.max(0, (start - current) / (start - goal)));
+}
+
+/** 今回のダイエット期間（開始日以降）の記録だけ */
+export function currentPeriod<T extends { date: string }>(list: T[], settings: Settings): T[] {
+  const from = settings.startDate ?? '';
+  return list.filter((r) => r.date >= from);
+}
+
+export type Trend = 'down' | 'up' | 'flat' | 'insufficient';
+/** 比較に必要な最低記録日数（各14日のうち） */
+export const MIN_DAYS_FOR_TREND = 5;
+
+/** 直近14日と前の14日の平均を比べて、減少・増加・横ばいを判定。記録が少なければ判定しない */
+export function judgeTrend(cmp: { current: WindowAvg; previous: WindowAvg; diff: number | null }, flatRange: number): Trend {
+  if (cmp.diff == null || cmp.current.count < MIN_DAYS_FOR_TREND || cmp.previous.count < MIN_DAYS_FOR_TREND) return 'insufficient';
+  if (Math.abs(cmp.diff) < flatRange) return 'flat';
+  return cmp.diff < 0 ? 'down' : 'up';
 }
